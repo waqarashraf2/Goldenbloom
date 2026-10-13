@@ -192,6 +192,7 @@ export default function CrmApp() {
                 src="/goldenbloom-logo.png"
                 alt="Golden Bloom"
                 className="h-16 w-auto object-contain mx-auto"
+                style={{ maxHeight: '64px', width: 'auto' }}
               />
             </div>
             <h1 className="text-xl font-bold text-slate-900 tracking-tight">Golden Bloom CRM</h1>
@@ -310,6 +311,7 @@ export default function CrmApp() {
               src="/goldenbloom-logo.png"
               alt="Golden Bloom"
               className="h-8 w-auto object-contain"
+              style={{ maxHeight: '32px', width: 'auto' }}
             />
             <div>
               <span className="font-extrabold text-slate-900 text-xs tracking-tight block">
