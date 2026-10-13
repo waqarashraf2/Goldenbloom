@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Lead, User, apiRequest } from '@/lib/api';
+import { Lead, User, apiRequest, API_BASE_URL } from '@/lib/api';
 import { 
   Search, Filter, Plus, PhoneCall, Phone, MessageSquare, Download, 
   RotateCcw, CheckCircle2, Clock, Calendar, AlertCircle, ArrowUpDown, 
@@ -151,7 +151,7 @@ export default function LeadsView({ currentUser, telecallers, onOpenLogCall, ini
 
   const handleExportCsv = () => {
     const token = typeof window !== 'undefined' ? localStorage.getItem('crm_token') : '';
-    window.open(`http://127.0.0.1:8000/api/leads-export?api_token=${token}`, '_blank');
+    window.open(`${API_BASE_URL}/leads-export?api_token=${token}`, '_blank');
   };
 
   const getSourceBadge = (source: string) => {

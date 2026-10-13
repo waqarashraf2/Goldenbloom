@@ -1,0 +1,133 @@
+name: Deploy Golden Bloom CRM
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+concurrency:
+  group: production-deployment
+  cancel-in-progress: false
+
+jobs:
+  deploy-frontend:
+    name: Build & Deploy Frontend (crm.goldenbloom.ae)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install Frontend Dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Build Next.js Static Export
+        working-directory: frontend
+        env:
+          NEXT_PUBLIC_API_URL: https://api.goldenbloom.ae/api
+        run: npm run build
+
+      - name: Setup SSH Key
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.HOSTINGER_SSH_KEY }}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -p ${{ secrets.HOSTINGER_PORT }} -H ${{ secrets.HOSTINGER_HOST }} >> ~/.ssh/known_hosts
+
+      - name: Deploy Frontend to crm.goldenbloom.ae
+        run: |
+          # Sync static export exclusively to crm.goldenbloom.ae/public_html
+          rsync -avz --delete \
+            -e "ssh -i ~/.ssh/deploy_key -p ${{ secrets.HOSTINGER_PORT }}" \
+            frontend/out/ \
+            ${{ secrets.HOSTINGER_USER }}@${{ secrets.HOSTINGER_HOST }}:/home/${{ secrets.HOSTINGER_USER }}/domains/crm.goldenbloom.ae/public_html/
+
+      - name: Configure crm.goldenbloom.ae Server (.htaccess & cleanup)
+        run: |
+          ssh -i ~/.ssh/deploy_key -p ${{ secrets.HOSTINGER_PORT }} ${{ secrets.HOSTINGER_USER }}@${{ secrets.HOSTINGER_HOST }} << 'EOF'
+            cd /home/u877974409/domains/crm.goldenbloom.ae/public_html
+            # Remove default placeholder if exists
+            rm -f default.php
+
+            # Create SPA .htaccess for client-side routing
+            cat << 'HTACCESS' > .htaccess
+          <IfModule mod_rewrite.c>
+              RewriteEngine On
+              RewriteBase /
+              RewriteRule ^index\.html$ - [L]
+              RewriteCond %{REQUEST_FILENAME} !-f
+              RewriteCond %{REQUEST_FILENAME} !-d
+              RewriteRule . /index.html [L]
+          </IfModule>
+          HTACCESS
+          EOF
+
+  deploy-backend:
+    name: Deploy Backend API (api.goldenbloom.ae)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup SSH Key
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.HOSTINGER_SSH_KEY }}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -p ${{ secrets.HOSTINGER_PORT }} -H ${{ secrets.HOSTINGER_HOST }} >> ~/.ssh/known_hosts
+
+      - name: Deploy Backend Files to api.goldenbloom.ae
+        run: |
+          # Sync backend files exclusively to api.goldenbloom.ae/public_html
+          rsync -avz \
+            --exclude='.git*' \
+            --exclude='.env*' \
+            --exclude='vendor/' \
+            --exclude='node_modules/' \
+            --exclude='storage/logs/*' \
+            --exclude='storage/framework/cache/*' \
+            --exclude='storage/framework/sessions/*' \
+            -e "ssh -i ~/.ssh/deploy_key -p ${{ secrets.HOSTINGER_PORT }}" \
+            backend/ \
+            ${{ secrets.HOSTINGER_USER }}@${{ secrets.HOSTINGER_HOST }}:/home/${{ secrets.HOSTINGER_USER }}/domains/api.goldenbloom.ae/public_html/
+
+      - name: Run Backend Tasks (Composer, Cache, Permissions)
+        run: |
+          ssh -i ~/.ssh/deploy_key -p ${{ secrets.HOSTINGER_PORT }} ${{ secrets.HOSTINGER_USER }}@${{ secrets.HOSTINGER_HOST }} << 'EOF'
+            cd /home/u877974409/domains/api.goldenbloom.ae/public_html
+
+            # Configure .htaccess for Laravel public redirect and security
+            cat << 'HTACCESS' > .htaccess
+          <IfModule mod_rewrite.c>
+              RewriteEngine On
+
+              # Protect sensitive files and folders
+              RewriteRule ^(\.env|\.git) - [F,L]
+              RewriteRule ^(app|bootstrap|config|database|resources|routes|storage|tests|vendor) - [F,L]
+              RewriteRule ^(artisan|composer\.json|composer\.lock|package\.json) - [F,L]
+
+              # Route all incoming requests to public/
+              RewriteCond %{REQUEST_URI} !^/public/
+              RewriteRule ^(.*)$ public/$1 [L]
+          </IfModule>
+          HTACCESS
+
+            # Install dependencies & optimize
+            composer install --no-dev --optimize-autoloader --no-interaction
+
+            # Fix storage permissions
+            chmod -R 775 storage bootstrap/cache
+
+            # Clear cache
+            php artisan config:clear || true
+            php artisan cache:clear || true
+            php artisan route:clear || true
+          EOF

@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { apiRequest } from '@/lib/api';
+import { apiRequest, API_BASE_URL } from '@/lib/api';
 import { 
   FileSpreadsheet, Globe, Copy, Check, Key, RefreshCw, Send, CheckCircle2, 
   AlertCircle, Sparkles, ExternalLink, ShieldCheck, Plus, Trash2, 
@@ -178,7 +178,7 @@ export default function IntegrationsView() {
   };
 
   const secretKey = settings?.webhook_secret_key || 'gb_sec_goldenbloom_998124';
-  const webhookUrl = settings?.webhook_url || 'http://127.0.0.1:8000/api/webhooks/lead';
+  const webhookUrl = settings?.webhook_url || `${API_BASE_URL}/webhooks/lead`;
 
   const generateScriptFromMappings = () => {
     const mappingStatements = mappings.map(m => {
