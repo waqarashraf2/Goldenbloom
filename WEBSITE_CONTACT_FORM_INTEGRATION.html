@@ -1,0 +1,55 @@
+<!-- 
+========================================================================
+GOLDEN BLOOM (https://goldenbloom.ae/contact/) CRM WEBHOOK INTEGRATION
+========================================================================
+Is code ko apni website (WordPress theme, Elementor custom JS, ya contact page template) 
+par paste karen taake form submit hote hi direct CRM mein lead add ho sake.
+-->
+
+<script>
+(function() {
+  // Golden Bloom CRM Settings
+  var CRM_WEBHOOK_URL = "http://127.0.0.1:8000/api/webhooks/lead";
+  var CRM_SECRET_KEY  = "gb_sec_goldenbloom_998124";
+
+  window.addEventListener("DOMContentLoaded", function() {
+    // Contact form dhoondna (Elementor form, Contact Form 7, ya custom form)
+    var contactForm = document.querySelector(".elementor-form") 
+                   || document.querySelector(".wpcf7-form") 
+                   || document.querySelector("#contact-form") 
+                   || document.querySelector("form");
+
+    if (!contactForm) return;
+
+    contactForm.addEventListener("submit", function(event) {
+      // Form fields collect karna
+      var formData = new FormData(contactForm);
+
+      var payload = {
+        api_key: CRM_SECRET_KEY,
+        source: "website",
+        name: formData.get("form_fields[name]") || formData.get("your-name") || formData.get("name") || "Website Visitor",
+        phone: formData.get("form_fields[phone]") || formData.get("form_fields[tel]") || formData.get("your-phone") || formData.get("phone") || "",
+        email: formData.get("form_fields[email]") || formData.get("your-email") || formData.get("email") || "",
+        service_requested: formData.get("form_fields[service]") || formData.get("your-subject") || formData.get("subject") || "Website Inquiry",
+        message: formData.get("form_fields[message]") || formData.get("your-message") || formData.get("message") || ""
+      };
+
+      // Asynchronously push to CRM without breaking website submission
+      if (navigator.sendBeacon) {
+        var blob = new Blob([JSON.stringify(payload)], { type: "application/json" });
+        navigator.sendBeacon(CRM_WEBHOOK_URL, blob);
+      } else {
+        fetch(CRM_WEBHOOK_URL, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+          keepalive: true
+        }).catch(function(err) {
+          console.error("CRM Webhook Error:", err);
+        });
+      }
+    });
+  });
+})();
+</script>
