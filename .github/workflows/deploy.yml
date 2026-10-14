@@ -35,24 +35,32 @@ jobs:
           NEXT_PUBLIC_API_URL: https://api.goldenbloom.ae/api
         run: npm run build
 
-      - name: Setup SSH Key
+      - name: Setup SSH Key & Config
         run: |
           mkdir -p ~/.ssh
           echo "${{ secrets.HOSTINGER_SSH_KEY }}" > ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
-          ssh-keyscan -p ${{ secrets.HOSTINGER_PORT }} -H ${{ secrets.HOSTINGER_HOST }} >> ~/.ssh/known_hosts
+          cat << 'EOF' > ~/.ssh/config
+          Host hostinger
+            HostName ${{ secrets.HOSTINGER_HOST }}
+            Port ${{ secrets.HOSTINGER_PORT }}
+            User ${{ secrets.HOSTINGER_USER }}
+            IdentityFile ~/.ssh/deploy_key
+            StrictHostKeyChecking no
+            UserKnownHostsFile /dev/null
+            ServerAliveInterval 30
+          EOF
 
       - name: Deploy Frontend to crm.goldenbloom.ae
         run: |
           # Sync static export exclusively to crm.goldenbloom.ae/public_html
           rsync -avz --delete \
-            -e "ssh -i ~/.ssh/deploy_key -p ${{ secrets.HOSTINGER_PORT }}" \
             frontend/out/ \
-            ${{ secrets.HOSTINGER_USER }}@${{ secrets.HOSTINGER_HOST }}:/home/${{ secrets.HOSTINGER_USER }}/domains/crm.goldenbloom.ae/public_html/
+            hostinger:/home/${{ secrets.HOSTINGER_USER }}/domains/crm.goldenbloom.ae/public_html/
 
       - name: Configure crm.goldenbloom.ae Server (.htaccess & cleanup)
         run: |
-          ssh -i ~/.ssh/deploy_key -p ${{ secrets.HOSTINGER_PORT }} ${{ secrets.HOSTINGER_USER }}@${{ secrets.HOSTINGER_HOST }} << 'EOF'
+          ssh hostinger << 'EOF'
             cd /home/u877974409/domains/crm.goldenbloom.ae/public_html
             # Remove default placeholder if exists
             rm -f default.php
@@ -72,17 +80,27 @@ jobs:
 
   deploy-backend:
     name: Deploy Backend API (api.goldenbloom.ae)
+    needs: deploy-frontend
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      - name: Setup SSH Key
+      - name: Setup SSH Key & Config
         run: |
           mkdir -p ~/.ssh
           echo "${{ secrets.HOSTINGER_SSH_KEY }}" > ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
-          ssh-keyscan -p ${{ secrets.HOSTINGER_PORT }} -H ${{ secrets.HOSTINGER_HOST }} >> ~/.ssh/known_hosts
+          cat << 'EOF' > ~/.ssh/config
+          Host hostinger
+            HostName ${{ secrets.HOSTINGER_HOST }}
+            Port ${{ secrets.HOSTINGER_PORT }}
+            User ${{ secrets.HOSTINGER_USER }}
+            IdentityFile ~/.ssh/deploy_key
+            StrictHostKeyChecking no
+            UserKnownHostsFile /dev/null
+            ServerAliveInterval 30
+          EOF
 
       - name: Deploy Backend Files to api.goldenbloom.ae
         run: |
@@ -95,13 +113,12 @@ jobs:
             --exclude='storage/logs/*' \
             --exclude='storage/framework/cache/*' \
             --exclude='storage/framework/sessions/*' \
-            -e "ssh -i ~/.ssh/deploy_key -p ${{ secrets.HOSTINGER_PORT }}" \
             backend/ \
-            ${{ secrets.HOSTINGER_USER }}@${{ secrets.HOSTINGER_HOST }}:/home/${{ secrets.HOSTINGER_USER }}/domains/api.goldenbloom.ae/public_html/
+            hostinger:/home/${{ secrets.HOSTINGER_USER }}/domains/api.goldenbloom.ae/public_html/
 
       - name: Run Backend Tasks (Composer, Cache, Permissions)
         run: |
-          ssh -i ~/.ssh/deploy_key -p ${{ secrets.HOSTINGER_PORT }} ${{ secrets.HOSTINGER_USER }}@${{ secrets.HOSTINGER_HOST }} << 'EOF'
+          ssh hostinger << 'EOF'
             cd /home/u877974409/domains/api.goldenbloom.ae/public_html
 
             # Configure .htaccess for Laravel public redirect and security
