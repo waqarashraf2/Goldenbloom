@@ -1,8 +1,11 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Lead, apiRequest } from '@/lib/api';
-import { X, Phone, PhoneCall, Calendar, Clock, CheckCircle2, AlertCircle, MessageSquare, User, History } from 'lucide-react';
+import { 
+  X, Phone, PhoneCall, Calendar, Clock, CheckCircle2, AlertCircle, 
+  MessageSquare, User, History, Copy, ChevronDown, ChevronUp, Sparkles, Check
+} from 'lucide-react';
 
 interface LogCallModalProps {
   lead: Lead | null;
@@ -10,16 +13,68 @@ interface LogCallModalProps {
   onSuccess: (updatedLead: Lead) => void;
 }
 
+const toLocalDatetime = (dateStr?: string | null): string => {
+  if (!dateStr) return '';
+  try {
+    const d = new Date(dateStr);
+    if (isNaN(d.getTime())) return '';
+    const pad = (n: number) => n.toString().padStart(2, '0');
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  } catch {
+    return '';
+  }
+};
+
 export default function LogCallModal({ lead, onClose, onSuccess }: LogCallModalProps) {
   const [callStatus, setCallStatus] = useState<'connected' | 'no_answer' | 'busy' | 'switched_off' | 'callback_requested'>('connected');
   const [outcome, setOutcome] = useState<string>('interested');
   const [notes, setNotes] = useState('');
   const [followUpDate, setFollowUpDate] = useState('');
   const [duration, setDuration] = useState('120');
+  const [showHistory, setShowHistory] = useState(true);
+  const [copiedNote, setCopiedNote] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Pre-populate fields automatically when lead opens or reopens on subsequent days
+  useEffect(() => {
+    if (lead) {
+      // 1. Pre-select previous call connection status
+      const validCallStatuses = ['connected', 'no_answer', 'busy', 'switched_off', 'callback_requested'];
+      if (lead.last_call_status && validCallStatuses.includes(lead.last_call_status)) {
+        setCallStatus(lead.last_call_status as any);
+      } else {
+        setCallStatus('connected');
+      }
+
+      // 2. Pre-select previous outcome or map lead status
+      const validOutcomes = ['interested', 'follow_up', 'meeting_scheduled', 'closed_won', 'not_interested', 'closed_lost'];
+      if (lead.call_logs && lead.call_logs.length > 0 && lead.call_logs[0].outcome) {
+        setOutcome(lead.call_logs[0].outcome);
+      } else if (validOutcomes.includes(lead.status)) {
+        setOutcome(lead.status);
+      } else {
+        setOutcome('interested');
+      }
+
+      // 3. Pre-fill next scheduled follow-up date (if exists) so it is retained & editable
+      if (lead.next_follow_up_date) {
+        setFollowUpDate(toLocalDatetime(lead.next_follow_up_date));
+      } else {
+        setFollowUpDate('');
+      }
+
+      // 4. Default duration
+      setDuration('120');
+      setNotes('');
+      setError(null);
+      setCopiedNote(false);
+    }
+  }, [lead]);
+
   if (!lead) return null;
+
+  const lastCallLog = lead.call_logs && lead.call_logs.length > 0 ? lead.call_logs[0] : null;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -53,34 +108,44 @@ export default function LogCallModal({ lead, onClose, onSuccess }: LogCallModalP
     }
   };
 
-  const handleQuickFollowup = (days: number) => {
+  const handleQuickFollowup = (days: number, hour: number = 14, minute: number = 0) => {
     const d = new Date();
     d.setDate(d.getDate() + days);
-    d.setHours(14, 0, 0, 0); // Default to 2:00 PM
-    const isoString = d.toISOString().slice(0, 16);
-    setFollowUpDate(isoString);
+    d.setHours(hour, minute, 0, 0);
+    setFollowUpDate(toLocalDatetime(d.toISOString()));
+  };
+
+  const handleCopyPreviousNote = () => {
+    const textToCopy = lastCallLog?.notes || lead.lead_notes || '';
+    if (textToCopy) {
+      setNotes(textToCopy);
+      setCopiedNote(true);
+      setTimeout(() => setCopiedNote(false), 2000);
+    }
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 overflow-y-auto">
-      <div className="bg-white rounded-2xl shadow-2xl border border-amber-100 max-w-2xl w-full max-h-[90vh] flex flex-col overflow-hidden animate-in fade-in duration-200">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-3 sm:p-4 overflow-y-auto">
+      <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 max-w-2xl w-full max-h-[92vh] flex flex-col overflow-hidden animate-in fade-in duration-150">
         
         {/* Header */}
-        <div className="bg-white border-b border-slate-200 text-slate-900 p-5 flex items-center justify-between">
+        <div className="bg-white border-b border-slate-200 p-4 sm:p-5 flex items-center justify-between">
           <div>
             <div className="flex items-center gap-2">
               <span className="p-1.5 bg-amber-50 text-amber-800 rounded-lg">
-                <PhoneCall className="w-5 h-5" />
+                <PhoneCall className="w-4 h-4 sm:w-5 sm:h-5 text-amber-700" />
               </span>
-              <h2 className="text-lg font-bold tracking-tight text-slate-900">Log Call &amp; Follow-up</h2>
+              <h2 className="text-base sm:text-lg font-bold tracking-tight text-slate-900">
+                Log Call &amp; Follow-up
+              </h2>
             </div>
             <p className="text-xs text-slate-500 mt-0.5">
-              Lead: <strong className="text-slate-800">{lead.name}</strong> ({lead.phone})
+              Client: <strong className="text-slate-800 font-semibold">{lead.name}</strong> ({lead.phone})
             </p>
           </div>
           <button 
             onClick={onClose}
-            className="text-slate-400 hover:text-slate-700 p-1 rounded-lg hover:bg-slate-100 transition"
+            className="text-slate-400 hover:text-slate-700 p-1.5 rounded-lg hover:bg-slate-100 transition"
           >
             <X className="w-5 h-5" />
           </button>
@@ -89,7 +154,7 @@ export default function LogCallModal({ lead, onClose, onSuccess }: LogCallModalP
         {/* Content Body */}
         <div className="p-4 sm:p-5 overflow-y-auto space-y-4 flex-1 text-slate-800">
           
-          {/* Quick Lead Info Bar (Fixed: No overlapping with min-w-0 and flex-wrap) */}
+          {/* Quick Lead Info Bar */}
           <div className="bg-slate-50 p-3 rounded-xl border border-slate-200 grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
             <div className="min-w-0">
               <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">Phone</span>
@@ -101,7 +166,7 @@ export default function LogCallModal({ lead, onClose, onSuccess }: LogCallModalP
                   href={`https://wa.me/${lead.phone.replace(/[^0-9]/g, '')}`} 
                   target="_blank" 
                   rel="noreferrer"
-                  className="px-1.5 py-0.2 bg-emerald-600 hover:bg-emerald-700 text-white rounded text-[9px] font-bold inline-flex items-center gap-0.5 transition"
+                  className="px-1.5 py-0.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded text-[9px] font-bold inline-flex items-center gap-0.5 transition"
                 >
                   WhatsApp
                 </a>
@@ -123,23 +188,89 @@ export default function LogCallModal({ lead, onClose, onSuccess }: LogCallModalP
             </div>
 
             <div className="min-w-0">
-              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">Service Requested</span>
-              <span className="font-bold text-slate-800 truncate mt-0.5 block text-xs" title={lead.service_requested || 'General Floral'}>
-                {lead.service_requested || 'General Floral'}
+              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">Service</span>
+              <span className="font-bold text-slate-800 truncate mt-0.5 block text-xs" title={lead.service_requested || 'General Inquiry'}>
+                {lead.service_requested || 'General Inquiry'}
               </span>
             </div>
           </div>
 
-          {/* Campaign Custom Fields (Sheet columns like City, Budget, Instagram, etc.) */}
+          {/* Past Call History Accordion (Prominent & Pre-populated) */}
+          {lead.call_logs && lead.call_logs.length > 0 && (
+            <div className="bg-amber-50/60 border border-amber-200/80 rounded-xl overflow-hidden text-xs">
+              <button
+                type="button"
+                onClick={() => setShowHistory(!showHistory)}
+                className="w-full p-2.5 px-3 flex items-center justify-between text-left font-bold text-amber-950 hover:bg-amber-100/50 transition"
+              >
+                <span className="flex items-center gap-1.5">
+                  <History className="w-3.5 h-3.5 text-amber-700" />
+                  <span>Previous Interaction History ({lead.call_logs.length} calls logged)</span>
+                </span>
+                <div className="flex items-center gap-2">
+                  <span className="text-[11px] font-normal text-amber-800">
+                    Last: {lead.call_logs[0].call_status.replace('_', ' ')}
+                  </span>
+                  {showHistory ? <ChevronUp className="w-4 h-4 text-amber-700" /> : <ChevronDown className="w-4 h-4 text-amber-700" />}
+                </div>
+              </button>
+
+              {showHistory && (
+                <div className="p-3 pt-1 space-y-2 max-h-44 overflow-y-auto border-t border-amber-200/60">
+                  {lead.call_logs.map((log) => (
+                    <div key={log.id} className="p-2.5 bg-white rounded-lg border border-amber-200/70 shadow-2xs space-y-1">
+                      <div className="flex items-center justify-between text-[11px] text-slate-500">
+                        <span className="font-semibold text-slate-800 flex items-center gap-1">
+                          <User className="w-3 h-3 text-slate-400" />
+                          {log.user?.name || 'Telecaller'}
+                        </span>
+                        <span>
+                          {new Date(log.created_at).toLocaleString('en-US', {
+                            month: 'short',
+                            day: 'numeric',
+                            hour: 'numeric',
+                            minute: '2-digit',
+                            hour12: true,
+                          })}
+                        </span>
+                      </div>
+                      <div className="flex flex-wrap items-center gap-1.5 text-[10px]">
+                        <span className="px-1.5 py-0.5 rounded font-bold bg-slate-100 text-slate-700 capitalize">
+                          {log.call_status.replace('_', ' ')}
+                        </span>
+                        {log.outcome && (
+                          <span className="px-1.5 py-0.5 rounded font-bold bg-amber-100 text-amber-900 capitalize">
+                            Outcome: {log.outcome.replace('_', ' ')}
+                          </span>
+                        )}
+                        {log.follow_up_date && (
+                          <span className="text-slate-500 flex items-center gap-1 ml-auto">
+                            <Clock className="w-3 h-3 text-amber-600" />
+                            Next: {new Date(log.follow_up_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-slate-800 text-xs bg-slate-50/80 p-2 rounded border border-slate-100 mt-1 whitespace-pre-wrap">
+                        {log.notes}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Campaign Custom Fields (e.g. Community, Budget) */}
           {lead.custom_fields && Object.keys(lead.custom_fields).length > 0 && (
-            <div className="bg-purple-50/80 p-2.5 rounded-xl border border-purple-200/80 text-xs space-y-1.5">
+            <div className="bg-purple-50/70 p-2.5 rounded-xl border border-purple-200/70 text-xs space-y-1.5">
               <span className="font-bold text-purple-900 block text-[10px] flex items-center gap-1 uppercase tracking-wider">
-                <span>✨ Campaign Sheet Custom Fields:</span>
+                <Sparkles className="w-3 h-3 text-purple-600" />
+                <span>Custom Ingestion Fields:</span>
               </span>
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                 {Object.entries(lead.custom_fields).map(([k, v]) => (
                   <div key={k} className="bg-white p-1.5 px-2 rounded-lg border border-purple-100 shadow-2xs min-w-0">
-                    <span className="text-[9px] text-slate-400 block font-medium truncate">{k}</span>
+                    <span className="text-[9px] text-slate-400 block font-medium truncate uppercase">{k}</span>
                     <span className="font-bold text-purple-950 truncate block mt-0.5 text-xs" title={String(v)}>
                       {String(v)}
                     </span>
@@ -150,34 +281,36 @@ export default function LogCallModal({ lead, onClose, onSuccess }: LogCallModalP
           )}
 
           {error && (
-            <div className="p-3 bg-rose-50 border border-rose-200 text-rose-700 text-sm rounded-xl flex items-center gap-2">
+            <div className="p-3 bg-rose-50 border border-rose-200 text-rose-700 text-xs rounded-xl flex items-center gap-2">
               <AlertCircle className="w-4 h-4 flex-shrink-0" />
               <span>{error}</span>
             </div>
           )}
 
-          <form onSubmit={handleSubmit} className="space-y-5">
-            {/* Call Status Selection */}
+          <form onSubmit={handleSubmit} className="space-y-4">
+            
+            {/* 1. Call Connection Status (Pre-selected & Editable) */}
             <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-2">
-                1. Call Connection Status
+              <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5 flex items-center justify-between">
+                <span>1. Call Connection Status</span>
+                <span className="text-[10px] text-slate-400 font-normal">Pre-selected from last status</span>
               </label>
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                 {[
-                  { id: 'connected', label: 'Connected', icon: '🟢', color: 'border-emerald-500 bg-emerald-50 text-emerald-800' },
-                  { id: 'no_answer', label: 'Ringing / No Answer', icon: '🟡', color: 'border-amber-500 bg-amber-50 text-amber-800' },
-                  { id: 'busy', label: 'Line Busy', icon: '🔴', color: 'border-rose-400 bg-rose-50 text-rose-800' },
+                  { id: 'connected', label: 'Connected', icon: '🟢', color: 'border-emerald-500 bg-emerald-50/80 text-emerald-900' },
+                  { id: 'no_answer', label: 'Ringing / No Answer', icon: '🟡', color: 'border-amber-500 bg-amber-50/80 text-amber-900' },
+                  { id: 'busy', label: 'Line Busy', icon: '🔴', color: 'border-rose-400 bg-rose-50/80 text-rose-900' },
                   { id: 'switched_off', label: 'Switched Off', icon: '⚪', color: 'border-slate-400 bg-slate-50 text-slate-800' },
-                  { id: 'callback_requested', label: 'Asked to Call Back', icon: '📞', color: 'border-blue-500 bg-blue-50 text-blue-800' },
+                  { id: 'callback_requested', label: 'Asked to Call Back', icon: '📞', color: 'border-blue-500 bg-blue-50/80 text-blue-900' },
                 ].map((item) => (
                   <button
                     key={item.id}
                     type="button"
                     onClick={() => setCallStatus(item.id as any)}
-                    className={`p-2 px-2.5 text-left border rounded-lg font-medium text-xs flex items-center gap-2 transition ${
+                    className={`p-2 px-2.5 text-left border rounded-lg font-medium text-xs flex items-center gap-2 transition cursor-pointer ${
                       callStatus === item.id 
                         ? `${item.color} ring-2 ring-amber-500 font-bold shadow-2xs` 
-                        : 'border-slate-200 hover:bg-slate-50 text-slate-700'
+                        : 'border-slate-200 hover:bg-slate-50 text-slate-700 bg-white'
                     }`}
                   >
                     <span>{item.icon}</span>
@@ -187,16 +320,17 @@ export default function LogCallModal({ lead, onClose, onSuccess }: LogCallModalP
               </div>
             </div>
 
-            {/* Outcome (If Connected) */}
+            {/* 2. Call Outcome & Interest (If Connected) */}
             {callStatus === 'connected' && (
               <div>
-                <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-600 mb-1.5">
-                  2. Call Outcome &amp; Client Interest
+                <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5 flex items-center justify-between">
+                  <span>2. Call Outcome &amp; Client Interest</span>
+                  <span className="text-[10px] text-slate-400 font-normal">Pre-selected from lead interest</span>
                 </label>
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5">
                   {[
                     { id: 'interested', label: 'Interested / Send Quote' },
-                    { id: 'follow_up', label: 'Follow-up Scheduled' },
+                    { id: 'follow_up', label: 'Follow up Scheduled' },
                     { id: 'meeting_scheduled', label: 'Meeting / Consultation' },
                     { id: 'closed_won', label: 'Deal Closed (Won)' },
                     { id: 'not_interested', label: 'Not Interested' },
@@ -206,10 +340,10 @@ export default function LogCallModal({ lead, onClose, onSuccess }: LogCallModalP
                       key={item.id}
                       type="button"
                       onClick={() => setOutcome(item.id)}
-                      className={`p-2 text-center border rounded-lg text-xs font-medium transition ${
+                      className={`p-2 text-center border rounded-lg text-xs font-medium transition cursor-pointer ${
                         outcome === item.id 
-                          ? 'border-amber-600 bg-amber-50 text-amber-900 font-bold ring-2 ring-amber-500' 
-                          : 'border-slate-200 hover:bg-slate-50 text-slate-700'
+                          ? 'border-amber-600 bg-amber-50 text-amber-900 font-bold ring-2 ring-amber-500 shadow-2xs' 
+                          : 'border-slate-200 hover:bg-slate-50 text-slate-700 bg-white'
                       }`}
                     >
                       {item.label}
@@ -219,117 +353,130 @@ export default function LogCallModal({ lead, onClose, onSuccess }: LogCallModalP
               </div>
             )}
 
-            {/* Call Notes / Discussion Summary */}
+            {/* 3. Call Notes & Remarks (With 1-click Copy Last Notes) */}
             <div>
-              <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-600 mb-1 flex items-center justify-between">
-                <span>3. Call Notes / Remarks (Discussion Details) *</span>
-                <span className="text-[10px] text-slate-400 font-normal">What did the client say?</span>
-              </label>
+              <div className="flex items-center justify-between mb-1">
+                <label className="block text-xs font-bold uppercase tracking-wider text-slate-700">
+                  3. Call Notes / Remarks (Discussion Details) *
+                </label>
+                {(lastCallLog?.notes || lead.lead_notes) && (
+                  <button
+                    type="button"
+                    onClick={handleCopyPreviousNote}
+                    className="text-[11px] font-semibold text-amber-800 hover:text-amber-950 flex items-center gap-1 transition cursor-pointer"
+                    title="Copy last remarks into note field"
+                  >
+                    {copiedNote ? (
+                      <>
+                        <Check className="w-3.5 h-3.5 text-emerald-600" />
+                        <span className="text-emerald-700">Copied!</span>
+                      </>
+                    ) : (
+                      <>
+                        <Copy className="w-3.5 h-3.5 text-amber-700" />
+                        <span>Copy Previous Remarks</span>
+                      </>
+                    )}
+                  </button>
+                )}
+              </div>
               <textarea
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
-                rows={2}
+                rows={3}
                 required
-                placeholder="e.g. Client interested in floral decor for wedding on Nov 15. Requested quotation for 10 centerpieces and bridal bouquet via WhatsApp..."
+                placeholder={
+                  lastCallLog?.notes 
+                    ? `Previous note: "${lastCallLog.notes}" — Enter today's discussion summary...`
+                    : lead.lead_notes 
+                    ? `Inquiry note: "${lead.lead_notes}" — Enter call remarks...`
+                    : "e.g. Client requested customized quote for swimming pool and pergola. Follow up tomorrow at 2 PM with brochure on WhatsApp..."
+                }
                 className="w-full text-xs p-2.5 rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500 bg-white placeholder-slate-400"
               />
             </div>
 
-            {/* Next Follow-up Date & Time */}
-            <div className="bg-slate-50 p-2.5 sm:p-3 rounded-xl border border-slate-200">
-              <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-2">
-                4. Next Follow-Up Date & Time
-              </label>
-              <div className="flex flex-wrap items-center gap-2 mb-2.5">
-                <button
-                  type="button"
-                  onClick={() => handleQuickFollowup(1)}
-                  className="px-2.5 py-1 text-xs bg-white border border-slate-300 rounded-lg hover:border-amber-500 hover:text-amber-700 font-medium transition"
-                >
-                  Tomorrow (2 PM)
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleQuickFollowup(2)}
-                  className="px-2.5 py-1 text-xs bg-white border border-slate-300 rounded-lg hover:border-amber-500 hover:text-amber-700 font-medium transition"
-                >
-                  In 2 Days
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleQuickFollowup(7)}
-                  className="px-2.5 py-1 text-xs bg-white border border-slate-300 rounded-lg hover:border-amber-500 hover:text-amber-700 font-medium transition"
-                >
-                  Next Week
-                </button>
+            {/* 4. Next Follow-up Date & Time (Pre-filled & Fully Editable) */}
+            <div className="bg-slate-50 p-3 rounded-xl border border-slate-200 space-y-2">
+              <div className="flex items-center justify-between">
+                <label className="block text-xs font-bold uppercase tracking-wider text-slate-700">
+                  4. Next Follow-Up Date &amp; Time
+                </label>
                 {followUpDate && (
                   <button
                     type="button"
                     onClick={() => setFollowUpDate('')}
-                    className="text-xs text-rose-600 hover:underline ml-auto"
+                    className="text-[11px] text-rose-600 hover:underline font-semibold"
                   >
                     Clear Date
                   </button>
                 )}
               </div>
+
+              {/* Quick Preset Buttons */}
+              <div className="flex flex-wrap items-center gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => handleQuickFollowup(0, 17, 0)}
+                  className="px-2 py-1 text-[11px] bg-white border border-slate-200 hover:border-amber-500 hover:text-amber-800 rounded-md font-medium transition cursor-pointer"
+                >
+                  Today (5 PM)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleQuickFollowup(1, 11, 0)}
+                  className="px-2 py-1 text-[11px] bg-white border border-slate-200 hover:border-amber-500 hover:text-amber-800 rounded-md font-medium transition cursor-pointer"
+                >
+                  Tomorrow (11 AM)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleQuickFollowup(1, 14, 0)}
+                  className="px-2 py-1 text-[11px] bg-white border border-slate-200 hover:border-amber-500 hover:text-amber-800 rounded-md font-medium transition cursor-pointer"
+                >
+                  Tomorrow (2 PM)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleQuickFollowup(2, 11, 30)}
+                  className="px-2 py-1 text-[11px] bg-white border border-slate-200 hover:border-amber-500 hover:text-amber-800 rounded-md font-medium transition cursor-pointer"
+                >
+                  In 2 Days
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleQuickFollowup(7, 10, 0)}
+                  className="px-2 py-1 text-[11px] bg-white border border-slate-200 hover:border-amber-500 hover:text-amber-800 rounded-md font-medium transition cursor-pointer"
+                >
+                  Next Week
+                </button>
+              </div>
+
+              {/* Standard Fillable DateTime Picker */}
               <input
                 type="datetime-local"
                 value={followUpDate}
                 onChange={(e) => setFollowUpDate(e.target.value)}
-                className="w-full text-sm p-2.5 bg-white rounded-lg border border-slate-300 focus:ring-2 focus:ring-amber-500"
+                className="w-full text-xs p-2.5 bg-white rounded-lg border border-slate-300 focus:ring-2 focus:ring-amber-500 focus:outline-none"
               />
             </div>
 
-            {/* Past Call History for this lead */}
-            {lead.call_logs && lead.call_logs.length > 0 && (
-              <div className="pt-2 border-t border-slate-200">
-                <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-2 flex items-center gap-1.5">
-                  <History className="w-3.5 h-3.5" />
-                  Past Interaction History ({lead.call_logs.length})
-                </h4>
-                <div className="space-y-2 max-h-40 overflow-y-auto pr-1">
-                  {lead.call_logs.map((log) => (
-                    <div key={log.id} className="p-2.5 bg-white border border-slate-200 rounded-lg text-xs space-y-1">
-                      <div className="flex items-center justify-between text-slate-500">
-                        <span className="font-semibold text-slate-700">
-                          {log.user ? log.user.name : 'Telecaller'}
-                        </span>
-                        <span>{new Date(log.created_at).toLocaleString()}</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <span className="capitalize font-bold text-amber-900 bg-amber-50 px-1.5 py-0.5 rounded text-[11px]">
-                          {log.call_status.replace('_', ' ')}
-                        </span>
-                        {log.outcome && (
-                          <span className="capitalize text-slate-600 text-[11px]">
-                            Outcome: {log.outcome.replace('_', ' ')}
-                          </span>
-                        )}
-                      </div>
-                      <p className="text-slate-800 text-xs italic bg-slate-50 p-1.5 rounded mt-1">
-                        "{log.notes}"
-                      </p>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
             {/* Action Buttons */}
-            <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-200">
+            <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-slate-200">
               <button
                 type="button"
                 onClick={onClose}
-                className="px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-100 rounded-xl transition"
+                className="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-lg transition"
               >
                 Cancel
               </button>
               <button
                 type="submit"
                 disabled={loading}
-                className="px-6 py-2.5 text-sm font-bold text-white bg-gradient-to-r from-amber-700 to-amber-900 hover:from-amber-800 hover:to-amber-950 rounded-xl shadow-md hover:shadow-lg transition disabled:opacity-50 flex items-center gap-2"
+                className="px-5 py-2.5 text-xs font-bold text-white bg-amber-700 hover:bg-amber-800 rounded-lg shadow-xs hover:shadow transition disabled:opacity-50 flex items-center gap-1.5 cursor-pointer"
               >
-                {loading ? 'Saving Call...' : 'Save & Update Lead'}
+                <CheckCircle2 className="w-3.5 h-3.5" />
+                <span>{loading ? 'Saving Call...' : 'Save & Update Lead'}</span>
               </button>
             </div>
           </form>

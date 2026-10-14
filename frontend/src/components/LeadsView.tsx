@@ -23,6 +23,10 @@ export default function LeadsView({ currentUser, telecallers, onOpenLogCall, ini
   const [statusFilter, setStatusFilter] = useState('');
   const [assignedFilter, setAssignedFilter] = useState('');
   const [todayFollowups, setTodayFollowups] = useState(Boolean(initialFilter?.today_followups));
+  const [datePreset, setDatePreset] = useState('');
+  const [fromDate, setFromDate] = useState('');
+  const [toDate, setToDate] = useState('');
+  const [followupPreset, setFollowupPreset] = useState('');
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [totalLeadsCount, setTotalLeadsCount] = useState(0);
@@ -46,7 +50,7 @@ export default function LeadsView({ currentUser, telecallers, onOpenLogCall, ini
 
   useEffect(() => {
     fetchLeads();
-  }, [search, sourceFilter, statusFilter, assignedFilter, todayFollowups, page]);
+  }, [search, sourceFilter, statusFilter, assignedFilter, todayFollowups, datePreset, fromDate, toDate, followupPreset, page]);
 
   const fetchLeads = async () => {
     setLoading(true);
@@ -57,6 +61,10 @@ export default function LeadsView({ currentUser, telecallers, onOpenLogCall, ini
       if (statusFilter) params.append('status', statusFilter);
       if (assignedFilter) params.append('assigned_to', assignedFilter);
       if (todayFollowups) params.append('today_followups', '1');
+      if (datePreset) params.append('date_preset', datePreset);
+      if (fromDate) params.append('from_date', fromDate);
+      if (toDate) params.append('to_date', toDate);
+      if (followupPreset) params.append('followup_preset', followupPreset);
       params.append('page', String(page));
 
       const res = await apiRequest(`/leads?${params.toString()}`);
@@ -68,6 +76,19 @@ export default function LeadsView({ currentUser, telecallers, onOpenLogCall, ini
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleResetFilters = () => {
+    setSearch('');
+    setSourceFilter('');
+    setStatusFilter('');
+    setAssignedFilter('');
+    setTodayFollowups(false);
+    setDatePreset('');
+    setFromDate('');
+    setToDate('');
+    setFollowupPreset('');
+    setPage(1);
   };
 
   const handleAddLead = async (e: React.FormEvent) => {
@@ -151,7 +172,16 @@ export default function LeadsView({ currentUser, telecallers, onOpenLogCall, ini
 
   const handleExportCsv = () => {
     const token = typeof window !== 'undefined' ? localStorage.getItem('crm_token') : '';
-    window.open(`${API_BASE_URL}/leads-export?api_token=${token}`, '_blank');
+    const params = new URLSearchParams();
+    if (search) params.append('search', search);
+    if (sourceFilter) params.append('source', sourceFilter);
+    if (statusFilter) params.append('status', statusFilter);
+    if (assignedFilter) params.append('assigned_to', assignedFilter);
+    if (datePreset) params.append('date_preset', datePreset);
+    if (fromDate) params.append('from_date', fromDate);
+    if (toDate) params.append('to_date', toDate);
+    if (followupPreset) params.append('followup_preset', followupPreset);
+    window.open(`${API_BASE_URL}/leads-export?api_token=${token}&${params.toString()}`, '_blank');
   };
 
   const getSourceBadge = (source: string) => {
@@ -316,6 +346,99 @@ export default function LeadsView({ currentUser, telecallers, onOpenLogCall, ini
               </button>
             </div>
           )}
+
+        </div>
+
+        {/* Row 2: Date Filters & Follow-up Presets */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-2 pt-2 border-t border-slate-100 items-center">
+          
+          {/* Created Date Preset */}
+          <div>
+            <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1">
+              <Calendar className="w-3.5 h-3.5 text-amber-700 flex-shrink-0" />
+              <select
+                value={datePreset}
+                onChange={(e) => {
+                  setDatePreset(e.target.value);
+                  if (e.target.value !== 'custom') {
+                    setFromDate('');
+                    setToDate('');
+                  }
+                }}
+                className="w-full bg-transparent border-0 text-xs text-slate-700 focus:outline-none cursor-pointer"
+              >
+                <option value="">Created: All Time</option>
+                <option value="today">Created: Today</option>
+                <option value="yesterday">Created: Yesterday</option>
+                <option value="this_week">Created: This Week</option>
+                <option value="this_month">Created: This Month</option>
+                <option value="custom">📅 Custom Date Range...</option>
+              </select>
+            </div>
+          </div>
+
+          {/* Follow-up Preset Filter */}
+          <div>
+            <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1">
+              <Clock className="w-3.5 h-3.5 text-amber-700 flex-shrink-0" />
+              <select
+                value={followupPreset}
+                onChange={(e) => setFollowupPreset(e.target.value)}
+                className="w-full bg-transparent border-0 text-xs text-slate-700 focus:outline-none cursor-pointer"
+              >
+                <option value="">Follow-up: Any</option>
+                <option value="today">Follow-up: Today</option>
+                <option value="overdue">⚠️ Overdue Follow-ups</option>
+                <option value="upcoming">Upcoming Follow-ups</option>
+              </select>
+            </div>
+          </div>
+
+          {/* Custom Date Range (If Selected) */}
+          {datePreset === 'custom' ? (
+            <div className="lg:col-span-2 flex items-center gap-1.5">
+              <input
+                type="date"
+                value={fromDate}
+                onChange={(e) => setFromDate(e.target.value)}
+                className="w-full py-1 px-2 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-700 focus:ring-1 focus:ring-amber-500"
+              />
+              <span className="text-slate-400 text-xs font-bold">to</span>
+              <input
+                type="date"
+                value={toDate}
+                onChange={(e) => setToDate(e.target.value)}
+                className="w-full py-1 px-2 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-700 focus:ring-1 focus:ring-amber-500"
+              />
+            </div>
+          ) : (
+            <div className="lg:col-span-2 text-[11px] text-slate-400 hidden lg:flex items-center gap-2">
+              <span>Filter leads by date added, follow-up schedule, source, or keywords.</span>
+            </div>
+          )}
+
+          {/* Reset / Refresh Filters Button */}
+          <div className="flex justify-end">
+            {(search || sourceFilter || statusFilter || assignedFilter || todayFollowups || datePreset || fromDate || toDate || followupPreset) ? (
+              <button
+                type="button"
+                onClick={handleResetFilters}
+                className="w-full sm:w-auto px-3 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 transition cursor-pointer"
+              >
+                <RotateCcw className="w-3.5 h-3.5" />
+                <span>Reset Filters</span>
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={fetchLeads}
+                className="w-full sm:w-auto px-3 py-1.5 bg-slate-50 hover:bg-slate-100 text-slate-600 border border-slate-200 rounded-lg text-xs font-medium flex items-center justify-center gap-1.5 transition cursor-pointer"
+              >
+                <RotateCcw className="w-3.5 h-3.5 text-slate-400" />
+                <span>Refresh</span>
+              </button>
+            )}
+          </div>
 
         </div>
 

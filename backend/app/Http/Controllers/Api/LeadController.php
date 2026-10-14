@@ -12,11 +12,8 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class LeadController extends Controller
 {
-    public function index(Request $request)
+    private function applyLeadFilters($query, Request $request, $user)
     {
-        $user = $request->user();
-        $query = Lead::with('assignedUser')->latest('updated_at');
-
         // RBAC: Telecallers ONLY see leads assigned to them
         if ($user->role === 'telecaller') {
             $query->where('assigned_to', $user->id);
@@ -46,7 +43,7 @@ class LeadController extends Controller
             $query->where('last_call_status', $request->last_call_status);
         }
 
-        // Search by keyword (name, phone, email, service)
+        // Search by keyword (name, phone, email, service, campaign, notes)
         if ($request->filled('search')) {
             $search = trim($request->search);
             $query->where(function ($q) use ($search) {
@@ -54,17 +51,76 @@ class LeadController extends Controller
                   ->orWhere('phone', 'like', "%{$search}%")
                   ->orWhere('email', 'like', "%{$search}%")
                   ->orWhere('service_requested', 'like', "%{$search}%")
-                  ->orWhere('campaign_name', 'like', "%{$search}%");
+                  ->orWhere('campaign_name', 'like', "%{$search}%")
+                  ->orWhere('lead_notes', 'like', "%{$search}%");
             });
         }
 
-        // Filter: Today's / Overdue Follow-ups
+        // Date Presets (Created Date)
+        if ($request->filled('date_preset')) {
+            switch ($request->date_preset) {
+                case 'today':
+                    $query->whereDate('created_at', Carbon::today());
+                    break;
+                case 'yesterday':
+                    $query->whereDate('created_at', Carbon::yesterday());
+                    break;
+                case 'this_week':
+                    $query->whereBetween('created_at', [Carbon::now()->startOfWeek(), Carbon::now()->endOfWeek()]);
+                    break;
+                case 'this_month':
+                    $query->whereBetween('created_at', [Carbon::now()->startOfMonth(), Carbon::now()->endOfMonth()]);
+                    break;
+            }
+        }
+
+        // Custom Date Range
+        if ($request->filled('from_date')) {
+            $query->whereDate('created_at', '>=', $request->from_date);
+        }
+        if ($request->filled('to_date')) {
+            $query->whereDate('created_at', '<=', $request->to_date);
+        }
+
+        // Follow-up Preset / Filter
+        if ($request->filled('followup_preset')) {
+            switch ($request->followup_preset) {
+                case 'today':
+                    $query->whereDate('next_follow_up_date', Carbon::today())
+                          ->whereNotIn('status', ['closed_won', 'closed_lost', 'not_interested']);
+                    break;
+                case 'overdue':
+                    $query->whereNotNull('next_follow_up_date')
+                          ->where('next_follow_up_date', '<', Carbon::now())
+                          ->whereNotIn('status', ['closed_won', 'closed_lost', 'not_interested']);
+                    break;
+                case 'upcoming':
+                    $query->whereNotNull('next_follow_up_date')
+                          ->where('next_follow_up_date', '>', Carbon::today()->endOfDay())
+                          ->whereNotIn('status', ['closed_won', 'closed_lost', 'not_interested']);
+                    break;
+            }
+        }
+
+        // Legacy boolean for today follow-ups
         if ($request->boolean('today_followups')) {
             $endOfDay = Carbon::today()->endOfDay();
             $query->whereNotNull('next_follow_up_date')
                   ->where('next_follow_up_date', '<=', $endOfDay)
                   ->whereNotIn('status', ['closed_won', 'closed_lost', 'not_interested']);
         }
+
+        return $query;
+    }
+
+    public function index(Request $request)
+    {
+        $user = $request->user();
+        $query = Lead::with(['assignedUser', 'callLogs' => function ($q) {
+            $q->with('user')->latest();
+        }])->latest('updated_at');
+
+        $this->applyLeadFilters($query, $request, $user);
 
         $perPage = (int) $request->get('per_page', 15);
         $leads = $query->paginate($perPage);
@@ -322,7 +378,9 @@ class LeadController extends Controller
             return response()->json(['message' => 'Unauthorized.'], 403);
         }
 
-        $leads = Lead::with('assignedUser')->latest()->get();
+        $query = Lead::with('assignedUser')->latest();
+        $this->applyLeadFilters($query, $request, $request->user());
+        $leads = $query->get();
 
         $headers = [
             'Content-Type' => 'text/csv',
