@@ -4,14 +4,14 @@ import React, { useState, useEffect } from 'react';
 import { CallLog, User, apiRequest } from '@/lib/api';
 import { PhoneCall, Calendar, Clock, Search, Filter, User as UserIcon, MessageSquare } from 'lucide-react';
 
-export default function CallHistoryView({ currentUser }: { currentUser: User | null }) {
+export default function CallHistoryView({ currentUser, refreshTrigger }: { currentUser: User | null; refreshTrigger?: number }) {
   const [logs, setLogs] = useState<CallLog[]>([]);
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState('');
 
   useEffect(() => {
     fetchLogs();
-  }, [statusFilter]);
+  }, [statusFilter, refreshTrigger]);
 
   const fetchLogs = async () => {
     setLoading(true);

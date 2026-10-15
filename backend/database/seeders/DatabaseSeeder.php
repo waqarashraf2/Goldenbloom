@@ -53,7 +53,7 @@ class DatabaseSeeder extends Seeder
 
         // 3. Settings
         CrmSetting::set('webhook_secret_key', 'gb_sec_goldenbloom_998124');
-        CrmSetting::set('auto_assign_enabled', '1');
+        CrmSetting::set('auto_assign_enabled', '0');
         CrmSetting::set('company_name', 'Golden Bloom UAE');
         CrmSetting::set('website_url', 'https://goldenbloom.ae');
 

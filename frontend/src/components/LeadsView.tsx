@@ -13,9 +13,10 @@ interface LeadsViewProps {
   telecallers: User[];
   onOpenLogCall: (lead: Lead) => void;
   initialFilter?: { source?: string; today_followups?: boolean };
+  refreshTrigger?: number;
 }
 
-export default function LeadsView({ currentUser, telecallers, onOpenLogCall, initialFilter }: LeadsViewProps) {
+export default function LeadsView({ currentUser, telecallers, onOpenLogCall, initialFilter, refreshTrigger }: LeadsViewProps) {
   const [leads, setLeads] = useState<Lead[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -30,6 +31,16 @@ export default function LeadsView({ currentUser, telecallers, onOpenLogCall, ini
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [totalLeadsCount, setTotalLeadsCount] = useState(0);
+
+  // Sync if initialFilter changes externally
+  useEffect(() => {
+    if (initialFilter?.today_followups !== undefined) {
+      setTodayFollowups(Boolean(initialFilter.today_followups));
+    }
+    if (initialFilter?.source !== undefined) {
+      setSourceFilter(initialFilter.source);
+    }
+  }, [initialFilter]);
 
   // Add Lead Modal State
   const [showAddModal, setShowAddModal] = useState(false);
@@ -50,7 +61,7 @@ export default function LeadsView({ currentUser, telecallers, onOpenLogCall, ini
 
   useEffect(() => {
     fetchLeads();
-  }, [search, sourceFilter, statusFilter, assignedFilter, todayFollowups, datePreset, fromDate, toDate, followupPreset, page]);
+  }, [search, sourceFilter, statusFilter, assignedFilter, todayFollowups, datePreset, fromDate, toDate, followupPreset, page, refreshTrigger]);
 
   const fetchLeads = async () => {
     setLoading(true);
@@ -80,10 +91,10 @@ export default function LeadsView({ currentUser, telecallers, onOpenLogCall, ini
 
   const handleResetFilters = () => {
     setSearch('');
-    setSourceFilter('');
+    setSourceFilter(initialFilter?.source || '');
     setStatusFilter('');
     setAssignedFilter('');
-    setTodayFollowups(false);
+    setTodayFollowups(Boolean(initialFilter?.today_followups));
     setDatePreset('');
     setFromDate('');
     setToDate('');
@@ -419,7 +430,7 @@ export default function LeadsView({ currentUser, telecallers, onOpenLogCall, ini
 
           {/* Reset / Refresh Filters Button */}
           <div className="flex justify-end">
-            {(search || sourceFilter || statusFilter || assignedFilter || todayFollowups || datePreset || fromDate || toDate || followupPreset) ? (
+            {(search || (sourceFilter && sourceFilter !== (initialFilter?.source || '')) || statusFilter || assignedFilter || (todayFollowups !== Boolean(initialFilter?.today_followups)) || datePreset || fromDate || toDate || followupPreset) ? (
               <button
                 type="button"
                 onClick={handleResetFilters}

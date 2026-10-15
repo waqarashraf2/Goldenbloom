@@ -125,23 +125,8 @@ class WebhookController extends Controller
             ]);
         }
 
-        // 4. Auto-assignment (Round Robin if enabled)
-        $autoAssign = CrmSetting::get('auto_assign_enabled', '1') === '1';
+        // 4. Inbound leads must always remain Unassigned until Admin manually assigns them
         $assignedTo = null;
-
-        if ($autoAssign) {
-            $activeTelecallers = User::where('role', 'telecaller')->where('is_active', true)->get();
-            if ($activeTelecallers->isNotEmpty()) {
-                // Find agent with lowest assigned leads count to balance load fairly
-                $leastLoadedAgent = $activeTelecallers->sortBy(function ($agent) {
-                    return Lead::where('assigned_to', $agent->id)->count();
-                })->first();
-
-                if ($leastLoadedAgent) {
-                    $assignedTo = $leastLoadedAgent->id;
-                }
-            }
-        }
 
         // 5. Create new lead
         $newLead = Lead::create([

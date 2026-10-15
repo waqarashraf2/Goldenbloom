@@ -12,8 +12,10 @@ import LogCallModal from '@/components/LogCallModal';
 import { 
   LayoutDashboard, Users, Clock, PhoneCall, FileSpreadsheet, 
   LogOut, Shield, Menu, X, Key, TableProperties, Database,
-  PanelLeftClose, PanelLeftOpen
+  PanelLeftClose, PanelLeftOpen, RotateCw
 } from 'lucide-react';
+
+const VALID_TABS = ['dashboard', 'leads', 'followups', 'activities', 'telecallers', 'import', 'integrations'];
 
 export default function CrmApp() {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
@@ -25,6 +27,11 @@ export default function CrmApp() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
+  // Auto-refresh and manual refresh state
+  const [refreshTrigger, setRefreshTrigger] = useState<number>(0);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [lastRefreshedAt, setLastRefreshedAt] = useState<Date>(new Date());
+
   // Login form state
   const [loginEmail, setLoginEmail] = useState('');
   const [loginPassword, setLoginPassword] = useState('');
@@ -34,17 +41,51 @@ export default function CrmApp() {
   // Leads filter state triggered by dashboard cards
   const [leadsFilter, setLeadsFilter] = useState<{ source?: string; today_followups?: boolean } | undefined>(undefined);
 
+  // Initial load: parse local auth & URL ?tab= parameter
   useEffect(() => {
     const savedToken = localStorage.getItem('crm_token');
     const savedUser = localStorage.getItem('crm_user');
+    let user: User | null = null;
     if (savedToken && savedUser) {
       try {
         setToken(savedToken);
-        setCurrentUser(JSON.parse(savedUser));
+        user = JSON.parse(savedUser);
+        setCurrentUser(user);
       } catch (e) {
         localStorage.clear();
       }
     }
+
+    if (typeof window !== 'undefined') {
+      const searchParams = new URLSearchParams(window.location.search);
+      const urlTab = searchParams.get('tab');
+      if (urlTab && VALID_TABS.includes(urlTab)) {
+        setActiveTab(urlTab);
+        if (urlTab === 'followups') {
+          setLeadsFilter({ today_followups: true });
+        }
+      } else if (user && user.role !== 'admin') {
+        setActiveTab('leads');
+      }
+    }
+
+    // Support browser Back/Forward buttons
+    const handlePopState = () => {
+      if (typeof window === 'undefined') return;
+      const searchParams = new URLSearchParams(window.location.search);
+      const urlTab = searchParams.get('tab');
+      if (urlTab && VALID_TABS.includes(urlTab)) {
+        setActiveTab(urlTab);
+        if (urlTab === 'followups') {
+          setLeadsFilter({ today_followups: true });
+        } else if (urlTab === 'leads') {
+          setLeadsFilter(undefined);
+        }
+      }
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
   }, []);
 
   useEffect(() => {
@@ -54,6 +95,19 @@ export default function CrmApp() {
         loadTelecallers();
       }
     }
+  }, [currentUser, token]);
+
+  // 60-Second Background Polling from MySQL DB
+  useEffect(() => {
+    if (!currentUser || !token) return;
+
+    const interval = setInterval(() => {
+      if (typeof document !== 'undefined' && document.visibilityState === 'visible') {
+        triggerRefresh(false);
+      }
+    }, 60000); // 60 seconds
+
+    return () => clearInterval(interval);
   }, [currentUser, token]);
 
   const loadStats = async () => {
@@ -74,6 +128,40 @@ export default function CrmApp() {
     }
   };
 
+  // Centralized Tab Switcher with browser URL sync
+  const switchTab = (tabId: string, filter?: { source?: string; today_followups?: boolean }) => {
+    setActiveTab(tabId);
+    if (tabId === 'followups') {
+      setLeadsFilter({ today_followups: true });
+    } else if (tabId === 'leads') {
+      setLeadsFilter(filter || undefined);
+    }
+
+    if (typeof window !== 'undefined') {
+      const currentUrl = new URL(window.location.href);
+      currentUrl.searchParams.set('tab', tabId);
+      window.history.pushState({ tab: tabId }, '', currentUrl.toString());
+    }
+  };
+
+  // Trigger manual or automatic refresh of all views
+  const triggerRefresh = async (isManual = true) => {
+    if (isRefreshing) return;
+    setIsRefreshing(true);
+    try {
+      await Promise.all([
+        loadStats(),
+        currentUser?.role === 'admin' ? loadTelecallers() : Promise.resolve(),
+      ]);
+      setRefreshTrigger(prev => prev + 1);
+      setLastRefreshedAt(new Date());
+    } catch (err) {
+      console.error('Refresh error', err);
+    } finally {
+      setTimeout(() => setIsRefreshing(false), 400);
+    }
+  };
+
   const handleLogin = async (email: string, pass: string) => {
     setLoginLoading(true);
     setLoginError(null);
@@ -88,7 +176,14 @@ export default function CrmApp() {
       localStorage.setItem('crm_user', JSON.stringify(data.user));
       setToken(data.token);
       setCurrentUser(data.user);
-      setActiveTab(data.user.role === 'admin' ? 'dashboard' : 'leads');
+
+      // Check if URL has a tab specified, else default to role home
+      const searchParams = new URLSearchParams(window.location.search);
+      const urlTab = searchParams.get('tab');
+      const targetTab = (urlTab && VALID_TABS.includes(urlTab)) 
+        ? urlTab 
+        : (data.user.role === 'admin' ? 'dashboard' : 'leads');
+      switchTab(targetTab);
     } catch (err: any) {
       setLoginError(err.message || 'Invalid email or password');
     } finally {
@@ -109,12 +204,11 @@ export default function CrmApp() {
   };
 
   const handleCallLogged = (updatedLead: Lead) => {
-    loadStats();
+    triggerRefresh(false);
   };
 
   const handleNavigateToLeads = (filter?: { source?: string; today_followups?: boolean }) => {
-    setLeadsFilter(filter);
-    setActiveTab(filter?.today_followups ? 'followups' : 'leads');
+    switchTab(filter?.today_followups ? 'followups' : 'leads', filter);
   };
 
   // Compact Single-Line Navigation Items in 100% English
@@ -357,13 +451,8 @@ export default function CrmApp() {
               <button
                 key={item.id}
                 onClick={() => {
-                  setActiveTab(item.id);
+                  switchTab(item.id);
                   setSidebarOpen(false);
-                  if (item.id === 'followups') {
-                    setLeadsFilter({ today_followups: true });
-                  } else if (item.id === 'leads') {
-                    setLeadsFilter(undefined);
-                  }
                 }}
                 className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs font-semibold transition ${
                   isActive 
@@ -487,6 +576,24 @@ export default function CrmApp() {
           </div>
 
           <div className="flex items-center gap-2 sm:gap-3 text-xs">
+            {/* Manual Refresh Button */}
+            <button
+              type="button"
+              onClick={() => triggerRefresh(true)}
+              disabled={isRefreshing}
+              title="Refresh live data from MySQL database"
+              className="px-2.5 py-1 rounded-lg bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-200 text-xs font-semibold flex items-center gap-1.5 shadow-2xs transition disabled:opacity-60 cursor-pointer"
+            >
+              <RotateCw className={`w-3.5 h-3.5 text-amber-700 ${isRefreshing ? 'animate-spin' : ''}`} />
+              <span className="hidden sm:inline">{isRefreshing ? 'Refreshing...' : 'Refresh'}</span>
+            </button>
+
+            {/* Auto-Refresh Timer / Indicator */}
+            <span className="hidden lg:inline-flex items-center gap-1 text-[11px] text-slate-500 font-medium">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+              <span>Auto (60s)</span>
+            </span>
+
             {/* Database Engine Tag */}
             <span className="hidden md:inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-slate-100 text-slate-700 text-[10px] font-medium border border-slate-200">
               <Database className="w-3 h-3 text-emerald-600" />
@@ -508,21 +615,23 @@ export default function CrmApp() {
               stats={stats}
               currentUser={currentUser}
               onNavigateToLeads={handleNavigateToLeads}
-              onNavigateToTab={(tab) => setActiveTab(tab)}
+              onNavigateToTab={(tab) => switchTab(tab)}
             />
           )}
 
           {(activeTab === 'leads' || activeTab === 'followups') && (
             <LeadsView
+              key={activeTab}
               currentUser={currentUser}
               telecallers={telecallers}
               onOpenLogCall={(lead) => setActiveCallModalLead(lead)}
-              initialFilter={leadsFilter}
+              initialFilter={activeTab === 'followups' ? { today_followups: true } : leadsFilter}
+              refreshTrigger={refreshTrigger}
             />
           )}
 
           {activeTab === 'activities' && (
-            <CallHistoryView currentUser={currentUser} />
+            <CallHistoryView currentUser={currentUser} refreshTrigger={refreshTrigger} />
           )}
 
           {activeTab === 'telecallers' && (
@@ -530,7 +639,7 @@ export default function CrmApp() {
           )}
 
           {activeTab === 'import' && (
-            <CsvImportView onImportComplete={() => { loadStats(); setActiveTab('leads'); }} />
+            <CsvImportView onImportComplete={() => { loadStats(); switchTab('leads'); }} />
           )}
 
           {activeTab === 'integrations' && (
