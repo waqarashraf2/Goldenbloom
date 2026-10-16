@@ -31,10 +31,12 @@ class WebhookController extends Controller
             ?: $request->input('full_name') 
             ?: $request->input('Client Name') 
             ?: $request->input('Name') 
-            ?: 'Website Visitor';
+            ?: '';
 
         $phone = $request->input('phone') 
+            ?: $request->input('phone_number') 
             ?: $request->input('mobile') 
+            ?: $request->input('mobile_number') 
             ?: $request->input('contact') 
             ?: $request->input('Phone') 
             ?: $request->input('Phone Number') 
@@ -45,11 +47,21 @@ class WebhookController extends Controller
             ?: $request->input('email_address') 
             ?: null;
 
-        $source = strtolower($request->input('source') 
-            ?: $request->input('Source') 
-            ?: 'website');
+        // Auto-detect source from platform tag if provided (e.g. Meta, fb, ig)
+        $platform = strtolower($request->input('platform', ''));
+        $source = strtolower($request->input('source') ?: $request->input('Source') ?: '');
+        if (!$source || $source === 'website') {
+            if ($platform === 'ig' || $platform === 'instagram') {
+                $source = 'instagram_ads';
+            } elseif ($platform === 'fb' || $platform === 'facebook') {
+                $source = 'facebook_ads';
+            } elseif (empty($source)) {
+                $source = 'website';
+            }
+        }
 
         $service = $request->input('service_requested') 
+            ?: $request->input('service_required') 
             ?: $request->input('service') 
             ?: $request->input('subject') 
             ?: $request->input('Service') 
@@ -76,17 +88,21 @@ class WebhookController extends Controller
             ], 422);
         }
 
-        // Clean phone number
+        // Clean phone number (strip 'p:' or spaces or letters, preserve leading +)
         $phone = preg_replace('/[^\+0-9]/', '', $phone);
+
+        if (empty($name)) {
+            $name = $phone ? ('Lead ' . $phone) : 'Inbound Lead';
+        }
 
         // Gather all dynamic / custom columns sent from Google Sheet or Ads
         $rawCustom = $request->input('custom_fields');
         $extraFields = $request->except([
             'api_key', 'name', 'full_name', 'Client Name', 'Name', 
-            'phone', 'mobile', 'contact', 'Phone', 'Phone Number', 
+            'phone', 'phone_number', 'mobile', 'mobile_number', 'contact', 'Phone', 'Phone Number', 
             'email', 'Email', 'email_address', 
-            'source', 'Source', 
-            'service_requested', 'service', 'subject', 'Service', 'Product', 
+            'source', 'Source', 'platform',
+            'service_requested', 'service_required', 'service', 'subject', 'Service', 'Product', 
             'lead_notes', 'message', 'notes', 'Message', 
             'campaign_name', 'campaign', 'Campaign', 
             'ad_name', 'ad_set', 'custom_fields'
@@ -96,6 +112,19 @@ class WebhookController extends Controller
             is_array($rawCustom) ? $rawCustom : [],
             is_array($extraFields) ? $extraFields : []
         );
+
+        // Intelligently construct notes from extra parameters if notes is empty
+        if (empty($notes) && !empty($customFields)) {
+            $summaryParts = [];
+            if (!empty($customFields['villa_location'])) $summaryParts[] = "Location: " . $customFields['villa_location'];
+            if (!empty($customFields['property_type'])) $summaryParts[] = "Property: " . ucfirst(str_replace('_', ' ', $customFields['property_type']));
+            if (!empty($customFields['project_timeline'])) $summaryParts[] = "Timeline: " . ucfirst(str_replace('_', ' ', $customFields['project_timeline']));
+            if (!empty($platform)) $summaryParts[] = "Platform: " . strtoupper($platform);
+            if (!empty($customFields['form_name'])) $summaryParts[] = "Form: " . $customFields['form_name'];
+            if (!empty($summaryParts)) {
+                $notes = implode(" | ", $summaryParts);
+            }
+        }
 
         // 3. Duplicate detection
         $existing = null;

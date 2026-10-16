@@ -309,6 +309,11 @@ class LeadController extends Controller
         $emailIdx = -1;
         $serviceIdx = -1;
         $notesIdx = -1;
+        $campaignIdx = -1;
+        $platformIdx = -1;
+        $locationIdx = -1;
+        $propertyIdx = -1;
+        $timelineIdx = -1;
 
         foreach ($normalizedHeader as $idx => $col) {
             if ($nameIdx === -1 && (str_contains($col, 'name') || str_contains($col, 'full_name') || str_contains($col, 'client'))) $nameIdx = $idx;
@@ -316,6 +321,11 @@ class LeadController extends Controller
             if ($emailIdx === -1 && (str_contains($col, 'email') || str_contains($col, 'mail'))) $emailIdx = $idx;
             if ($serviceIdx === -1 && (str_contains($col, 'service') || str_contains($col, 'product') || str_contains($col, 'requirement') || str_contains($col, 'flower') || str_contains($col, 'item'))) $serviceIdx = $idx;
             if ($notesIdx === -1 && (str_contains($col, 'note') || str_contains($col, 'message') || str_contains($col, 'comment') || str_contains($col, 'detail'))) $notesIdx = $idx;
+            if ($campaignIdx === -1 && str_contains($col, 'campaign')) $campaignIdx = $idx;
+            if ($platformIdx === -1 && str_contains($col, 'platform')) $platformIdx = $idx;
+            if ($locationIdx === -1 && (str_contains($col, 'location') || str_contains($col, 'villa') || str_contains($col, 'city') || str_contains($col, 'area'))) $locationIdx = $idx;
+            if ($propertyIdx === -1 && str_contains($col, 'property')) $propertyIdx = $idx;
+            if ($timelineIdx === -1 && str_contains($col, 'timeline')) $timelineIdx = $idx;
         }
 
         if ($phoneIdx === -1 && $nameIdx === -1) {
@@ -326,12 +336,12 @@ class LeadController extends Controller
         $imported = 0;
         $duplicatesSkipped = 0;
         $defaultSource = $request->input('source', 'csv_import');
-        $campaign = $request->input('campaign_name', 'CSV Batch ' . date('Y-m-d'));
+        $defaultCampaign = $request->input('campaign_name', 'CSV Batch ' . date('Y-m-d'));
 
         while (($row = fgetcsv($handle, 2000, ',')) !== false) {
             if (empty(array_filter($row))) continue;
 
-            $name = $nameIdx !== -1 && isset($row[$nameIdx]) ? trim($row[$nameIdx]) : 'Unknown Lead';
+            $name = $nameIdx !== -1 && isset($row[$nameIdx]) ? trim($row[$nameIdx]) : '';
             $phone = $phoneIdx !== -1 && isset($row[$phoneIdx]) ? preg_replace('/[^\+0-9]/', '', trim($row[$phoneIdx])) : '';
             $email = $emailIdx !== -1 && isset($row[$emailIdx]) ? trim($row[$emailIdx]) : null;
             $service = $serviceIdx !== -1 && isset($row[$serviceIdx]) ? trim($row[$serviceIdx]) : null;
@@ -341,6 +351,42 @@ class LeadController extends Controller
                 continue;
             }
 
+            if (empty($name)) {
+                $name = $phone ? ('Lead ' . $phone) : 'Inbound Lead';
+            }
+
+            // Gather all custom / extra columns
+            $customFields = [];
+            foreach ($normalizedHeader as $idx => $colKey) {
+                if ($idx !== $nameIdx && $idx !== $phoneIdx && $idx !== $emailIdx && $idx !== $serviceIdx && $idx !== $notesIdx) {
+                    if (isset($row[$idx]) && trim($row[$idx]) !== '') {
+                        $customFields[$colKey] = trim($row[$idx]);
+                    }
+                }
+            }
+
+            // Auto-generate rich note if note is blank
+            if (empty($notes)) {
+                $summaryParts = [];
+                if ($locationIdx !== -1 && !empty($row[$locationIdx])) $summaryParts[] = "Location: " . trim($row[$locationIdx]);
+                if ($propertyIdx !== -1 && !empty($row[$propertyIdx])) $summaryParts[] = "Property: " . ucfirst(str_replace('_', ' ', trim($row[$propertyIdx])));
+                if ($timelineIdx !== -1 && !empty($row[$timelineIdx])) $summaryParts[] = "Timeline: " . ucfirst(str_replace('_', ' ', trim($row[$timelineIdx])));
+                if ($platformIdx !== -1 && !empty($row[$platformIdx])) $summaryParts[] = "Platform: " . strtoupper(trim($row[$platformIdx]));
+                if (!empty($summaryParts)) {
+                    $notes = implode(" | ", $summaryParts);
+                }
+            }
+
+            // Auto-detect source from platform column
+            $leadSource = $defaultSource;
+            if ($platformIdx !== -1 && !empty($row[$platformIdx])) {
+                $plat = strtolower(trim($row[$platformIdx]));
+                if ($plat === 'ig' || $plat === 'instagram') $leadSource = 'instagram_ads';
+                elseif ($plat === 'fb' || $plat === 'facebook') $leadSource = 'facebook_ads';
+            }
+
+            $leadCampaign = ($campaignIdx !== -1 && !empty($row[$campaignIdx])) ? trim($row[$campaignIdx]) : $defaultCampaign;
+
             // Check duplicate by phone
             $existing = Lead::where('phone', $phone)->first();
             if ($existing) {
@@ -349,14 +395,16 @@ class LeadController extends Controller
             }
 
             Lead::create([
-                'name' => $name ?: 'Lead ' . $phone,
+                'name' => $name,
                 'phone' => $phone,
                 'email' => $email,
-                'source' => $defaultSource,
+                'source' => $leadSource,
                 'status' => 'new',
                 'service_requested' => $service,
-                'campaign_name' => $campaign,
+                'campaign_name' => $leadCampaign,
                 'lead_notes' => $notes,
+                'custom_fields' => !empty($customFields) ? $customFields : null,
+                'assigned_to' => null,
             ]);
 
             $imported++;

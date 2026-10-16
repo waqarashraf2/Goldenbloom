@@ -24,19 +24,22 @@ export default function IntegrationsView() {
   } | null>(null);
 
   // Campaign Info
-  const [campaignName, setCampaignName] = useState('Instagram Reels Luxury Campaign');
-  const [sourceTag, setSourceTag] = useState('instagram_ads');
+  const [campaignName, setCampaignName] = useState('Meta & Instagram Leads (Golden Bloom)');
+  const [sourceTag, setSourceTag] = useState('meta_ads');
 
-  // 2-COLUMN MAPPING STUDIO
+  // 2-COLUMN MAPPING STUDIO (Pre-configured for Meta Leads GB)
   const [mappings, setMappings] = useState<FieldMapping[]>([
-    { id: '1', dbField: 'name', dbLabel: 'Client Full Name (DB: name)', isCustom: false, sheetColumn: 'User Name' },
-    { id: '2', dbField: 'phone', dbLabel: 'Phone / WhatsApp (DB: phone)', isCustom: false, sheetColumn: 'WhatsApp Number' },
-    { id: '3', dbField: 'email', dbLabel: 'Email Address (DB: email)', isCustom: false, sheetColumn: 'Email' },
-    { id: '4', dbField: 'service_requested', dbLabel: 'Service / Requirement (DB: service_requested)', isCustom: false, sheetColumn: 'Flower Preference' },
-    { id: '5', dbField: 'lead_notes', dbLabel: 'Notes / Comments (DB: lead_notes)', isCustom: false, sheetColumn: 'Special Request' },
-    { id: '6', dbField: 'city', dbLabel: 'City / Location (DB: custom_fields.city)', isCustom: true, sheetColumn: 'City' },
-    { id: '7', dbField: 'budget', dbLabel: 'Budget (DB: custom_fields.budget)', isCustom: true, sheetColumn: 'Budget (AED)' },
-    { id: '8', dbField: 'instagram_handle', dbLabel: 'Instagram ID (DB: custom_fields.instagram_handle)', isCustom: true, sheetColumn: 'Instagram Handle' },
+    { id: '1', dbField: 'name', dbLabel: 'Client Full Name (DB: name)', isCustom: false, sheetColumn: 'full_name' },
+    { id: '2', dbField: 'phone', dbLabel: 'Phone Number (DB: phone)', isCustom: false, sheetColumn: 'phone_number' },
+    { id: '3', dbField: 'email', dbLabel: 'Email Address (DB: email)', isCustom: false, sheetColumn: 'email' },
+    { id: '4', dbField: 'service_requested', dbLabel: 'Service Required (DB: service_requested)', isCustom: false, sheetColumn: 'service_required' },
+    { id: '5', dbField: 'villa_location', dbLabel: 'Villa / Location (DB: custom_fields.villa_location)', isCustom: true, sheetColumn: 'villa_location' },
+    { id: '6', dbField: 'property_type', dbLabel: 'Property Type (DB: custom_fields.property_type)', isCustom: true, sheetColumn: 'property_type' },
+    { id: '7', dbField: 'project_timeline', dbLabel: 'Timeline (DB: custom_fields.project_timeline)', isCustom: true, sheetColumn: 'project_timeline' },
+    { id: '8', dbField: 'platform', dbLabel: 'Platform (fb/ig) (DB: custom_fields.platform)', isCustom: true, sheetColumn: 'platform' },
+    { id: '9', dbField: 'campaign_name', dbLabel: 'Campaign (DB: campaign_name)', isCustom: false, sheetColumn: 'campaign_name' },
+    { id: '10', dbField: 'form_name', dbLabel: 'Form Name (DB: custom_fields.form_name)', isCustom: true, sheetColumn: 'form_name' },
+    { id: '11', dbField: 'inbox_url', dbLabel: 'Meta Inbox URL (DB: custom_fields.inbox_url)', isCustom: true, sheetColumn: 'inbox_url' },
   ]);
 
   const [newDbKey, setNewDbKey] = useState('');
@@ -49,14 +52,15 @@ export default function IntegrationsView() {
 
   // Test Simulator State
   const [simValues, setSimValues] = useState<Record<string, string>>({
-    'User Name': 'Noura Al Shamsi',
-    'WhatsApp Number': '+971501122334',
-    'Email': 'noura.shamsi@example.com',
-    'Flower Preference': 'Luxury Rose & Peony Centerpieces',
-    'Special Request': 'Need floral decor for private villa event in Palm Jumeirah.',
-    'City': 'Dubai',
-    'Budget (AED)': '3,500 AED',
-    'Instagram Handle': '@noura_dxb_style',
+    'full_name': 'Yaqoob Alasmawi',
+    'phone_number': 'p:+971506857741',
+    'email': 'yoob@msn.com',
+    'service_required': 'swimming_pool',
+    'villa_location': 'Dubai Alquoz 2',
+    'property_type': 'villa',
+    'project_timeline': 'within_1_3_mon',
+    'platform': 'ig',
+    'campaign_name': 'GENERAL_CAMPAIGN_GB',
   });
   const [simLoading, setSimLoading] = useState(false);
   const [simSuccess, setSimSuccess] = useState<string | null>(null);
@@ -136,8 +140,24 @@ export default function IntegrationsView() {
     setMappings(mappings.filter(m => m.id !== id));
   };
 
-  const applyPreset = (preset: 'meta' | 'instagram' | 'wedding') => {
-    if (preset === 'meta') {
+  const applyPreset = (preset: 'meta_gb' | 'meta' | 'instagram' | 'wedding') => {
+    if (preset === 'meta_gb') {
+      setCampaignName('Meta & Instagram Leads (Golden Bloom)');
+      setSourceTag('meta_ads');
+      setMappings([
+        { id: '1', dbField: 'name', dbLabel: 'Client Full Name (DB: name)', isCustom: false, sheetColumn: 'full_name' },
+        { id: '2', dbField: 'phone', dbLabel: 'Phone Number (DB: phone)', isCustom: false, sheetColumn: 'phone_number' },
+        { id: '3', dbField: 'email', dbLabel: 'Email Address (DB: email)', isCustom: false, sheetColumn: 'email' },
+        { id: '4', dbField: 'service_requested', dbLabel: 'Service Required (DB: service_requested)', isCustom: false, sheetColumn: 'service_required' },
+        { id: '5', dbField: 'villa_location', dbLabel: 'Villa / Location (DB: custom_fields.villa_location)', isCustom: true, sheetColumn: 'villa_location' },
+        { id: '6', dbField: 'property_type', dbLabel: 'Property Type (DB: custom_fields.property_type)', isCustom: true, sheetColumn: 'property_type' },
+        { id: '7', dbField: 'project_timeline', dbLabel: 'Timeline (DB: custom_fields.project_timeline)', isCustom: true, sheetColumn: 'project_timeline' },
+        { id: '8', dbField: 'platform', dbLabel: 'Platform (fb/ig) (DB: custom_fields.platform)', isCustom: true, sheetColumn: 'platform' },
+        { id: '9', dbField: 'campaign_name', dbLabel: 'Campaign (DB: campaign_name)', isCustom: false, sheetColumn: 'campaign_name' },
+        { id: '10', dbField: 'form_name', dbLabel: 'Form Name (DB: custom_fields.form_name)', isCustom: true, sheetColumn: 'form_name' },
+        { id: '11', dbField: 'inbox_url', dbLabel: 'Meta Inbox URL (DB: custom_fields.inbox_url)', isCustom: true, sheetColumn: 'inbox_url' },
+      ]);
+    } else if (preset === 'meta') {
       setCampaignName('Meta Instant Form - Downtown Dubai');
       setSourceTag('facebook_ads');
       setMappings([
@@ -186,26 +206,22 @@ export default function IntegrationsView() {
       if (!colClean) return '';
 
       if (m.isCustom) {
-        return `    if (colLower === "${colClean.toLowerCase()}") {
-      payload.custom_fields["${m.dbField}"] = String(val).trim();
-    }`;
+        return `        if (colLower === "${colClean.toLowerCase()}") {
+          payload.custom_fields["${m.dbField}"] = String(val).trim();
+        }`;
       } else {
-        return `    if (colLower === "${colClean.toLowerCase()}") {
-      payload.${m.dbField} = String(val).trim();
-    }`;
+        return `        if (colLower === "${colClean.toLowerCase()}") {
+          payload.${m.dbField} = String(val).trim();
+        }`;
       }
     }).filter(Boolean).join('\n');
 
     return `/**
  * =========================================================================
- * GOLDEN BLOOM CRM - 2-COLUMN FIELD MAPPED GOOGLE APPS SCRIPT
+ * GOLDEN BLOOM CRM - PROFESSIONAL GOOGLE SHEETS LIVE SYNC
  * Campaign: ${campaignName}
  * Source Tag: ${sourceTag}
- * Website: https://goldenbloom.ae
- * =========================================================================
- * 
- * Column Mapping:
-${mappings.map(m => ` * - DB: ${m.dbField} <===> Sheet Column: "${m.sheetColumn}"`).join('\n')}
+ * Webhook URL: ${webhookUrl}
  * =========================================================================
  */
 
@@ -214,15 +230,62 @@ const CRM_SECRET_KEY  = "${secretKey}";
 const CAMPAIGN_NAME   = "${campaignName}";
 const SOURCE_TAG      = "${sourceTag}";
 
-function onFormSubmitOrEdit(e) {
-  try {
-    const sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
-    const lastRow = sheet.getLastRow();
-    if (lastRow < 2) return;
+/**
+ * Adds "🌸 Golden Bloom CRM" menu to the top Google Sheets menu bar on open.
+ */
+function onOpen() {
+  const ui = SpreadsheetApp.getUi();
+  ui.createMenu("🌸 Golden Bloom CRM")
+    .addItem("🚀 Sync All Leads Now", "syncAllLeadsToCRM")
+    .addItem("⚡ Enable 5-Min Auto-Sync", "setupAutoSyncTrigger")
+    .addSeparator()
+    .addItem("🧪 Test Connection", "testConnection")
+    .addToUi();
+}
 
-    const lastCol = sheet.getLastColumn();
-    const headers = sheet.getRange(1, 1, 1, lastCol).getValues()[0];
-    const rowValues = sheet.getRange(lastRow, 1, 1, lastCol).getValues()[0];
+/**
+ * Loops through ALL rows, checks sync status, and sends unsynced leads to CRM.
+ */
+function syncAllLeadsToCRM() {
+  const sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
+  const lastRow = sheet.getLastRow();
+  const lastCol = sheet.getLastColumn();
+
+  if (lastRow < 2) {
+    SpreadsheetApp.getActiveSpreadsheet().toast("Sheet has no lead data.", "Golden Bloom CRM");
+    return;
+  }
+
+  // Find or create 'CRM Sync Status' column
+  const headers = sheet.getRange(1, 1, 1, lastCol).getValues()[0];
+  let statusColIdx = -1;
+  for (let i = 0; i < headers.length; i++) {
+    if (String(headers[i]).toLowerCase().includes("crm status") || String(headers[i]).toLowerCase().includes("sync status")) {
+      statusColIdx = i + 1;
+      break;
+    }
+  }
+
+  if (statusColIdx === -1) {
+    statusColIdx = lastCol + 1;
+    sheet.getRange(1, statusColIdx).setValue("CRM Sync Status").setFontWeight("bold").setBackground("#fef3c7");
+  }
+
+  const allData = sheet.getRange(2, 1, lastRow - 1, Math.max(lastCol, statusColIdx)).getValues();
+  let syncedCount = 0;
+  let skippedCount = 0;
+  let errorCount = 0;
+
+  for (let r = 0; r < allData.length; r++) {
+    const rowNum = r + 2;
+    const rowValues = allData[r];
+    const currentStatus = String(rowValues[statusColIdx - 1] || "");
+
+    // Skip already synced leads
+    if (currentStatus.startsWith("✅ Synced")) {
+      skippedCount++;
+      continue;
+    }
 
     let payload = {
       api_key: CRM_SECRET_KEY,
@@ -236,14 +299,19 @@ function onFormSubmitOrEdit(e) {
       custom_fields: {}
     };
 
-    for (let i = 0; i < headers.length; i++) {
-      const headerTitle = String(headers[i]).trim();
+    for (let c = 0; c < headers.length; c++) {
+      const headerTitle = String(headers[c]).trim();
       const colLower = headerTitle.toLowerCase();
-      const val = rowValues[i];
+      const val = rowValues[c];
 
       if (val === null || val === undefined || String(val).trim() === "") continue;
 
 ${mappingStatements}
+    }
+
+    // Auto-clean phone (strip 'p:', spaces, special chars)
+    if (payload.phone) {
+      payload.phone = String(payload.phone).replace(/[^\\+0-9]/g, "");
     }
 
     if (!payload.name) {
@@ -251,43 +319,109 @@ ${mappingStatements}
     }
 
     if (!payload.phone && !payload.email) {
-      Logger.log("Row skipped: Phone or Email is missing.");
-      return;
+      sheet.getRange(rowNum, statusColIdx).setValue("⚠️ Missing Phone & Email").setFontColor("#b45309");
+      skippedCount++;
+      continue;
     }
 
-    const options = {
-      method: "post",
-      contentType: "application/json",
-      payload: JSON.stringify(payload),
-      muteHttpExceptions: true
-    };
+    try {
+      const options = {
+        method: "post",
+        contentType: "application/json",
+        payload: JSON.stringify(payload),
+        muteHttpExceptions: true
+      };
 
-    const response = UrlFetchApp.fetch(CRM_WEBHOOK_URL, options);
-    Logger.log("CRM Response: " + response.getContentText());
+      const response = UrlFetchApp.fetch(CRM_WEBHOOK_URL, options);
+      const resCode = response.getResponseCode();
+      const resText = response.getContentText();
 
-  } catch (error) {
-    Logger.log("Golden Bloom Sync Error: " + error.toString());
+      if (resCode >= 200 && resCode < 300) {
+        let jsonRes = {};
+        try { jsonRes = JSON.parse(resText); } catch(e) {}
+        const leadId = jsonRes.lead_id ? (" #" + jsonRes.lead_id) : "";
+        sheet.getRange(rowNum, statusColIdx).setValue("✅ Synced" + leadId).setFontColor("#047857");
+        syncedCount++;
+      } else {
+        sheet.getRange(rowNum, statusColIdx).setValue("❌ Error " + resCode).setFontColor("#b91c1c");
+        errorCount++;
+      }
+    } catch (err) {
+      sheet.getRange(rowNum, statusColIdx).setValue("❌ Network Error").setFontColor("#b91c1c");
+      errorCount++;
+    }
   }
+
+  SpreadsheetApp.getActiveSpreadsheet().toast(
+    "Sync Finished: " + syncedCount + " Synced, " + skippedCount + " Skipped, " + errorCount + " Errors.",
+    "Golden Bloom CRM"
+  );
 }
 
-function setupTrigger() {
+/**
+ * Automatically triggers whenever a new row is added (Meta Ads, Zapier, Form or Paste).
+ */
+function onFormSubmitOrEdit(e) {
+  syncAllLeadsToCRM();
+}
+
+/**
+ * Installs both Time-Driven (Every 5 mins) and Change triggers for 100% background automation.
+ */
+function setupAutoSyncTrigger() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const triggers = ScriptApp.getProjectTriggers();
   for (let i = 0; i < triggers.length; i++) {
     ScriptApp.deleteTrigger(triggers[i]);
   }
 
-  ScriptApp.newTrigger("onFormSubmitOrEdit")
-    .forSpreadsheet(ss)
-    .onFormSubmit()
+  // 1. Trigger every 5 minutes in background
+  ScriptApp.newTrigger("syncAllLeadsToCRM")
+    .timeBased()
+    .everyMinutes(5)
     .create();
 
-  ScriptApp.newTrigger("onFormSubmitOrEdit")
+  // 2. Trigger on sheet edit / change
+  ScriptApp.newTrigger("syncAllLeadsToCRM")
     .forSpreadsheet(ss)
     .onChange()
     .create();
 
-  Logger.log("SUCCESS! Golden Bloom Auto-Sync Trigger is now ACTIVE!");
+  SpreadsheetApp.getUi().alert(
+    "✅ Auto-Sync Activated!\\n\\nNew leads will now sync automatically every 5 minutes and on any new submission."
+  );
+}
+
+/**
+ * 1-Click Connection Test
+ */
+function testConnection() {
+  const ui = SpreadsheetApp.getUi();
+  try {
+    const payload = {
+      api_key: CRM_SECRET_KEY,
+      name: "Connection Test",
+      phone: "+971500000000",
+      email: "test@goldenbloom.ae",
+      lead_notes: "Ping test from Google Sheets",
+      source: "google_sheet_test"
+    };
+
+    const response = UrlFetchApp.fetch(CRM_WEBHOOK_URL, {
+      method: "post",
+      contentType: "application/json",
+      payload: JSON.stringify(payload),
+      muteHttpExceptions: true
+    });
+
+    if (response.getResponseCode() >= 200 && response.getResponseCode() < 300) {
+      ui.alert("✅ Connection Successful!\\n\\nGolden Bloom CRM API responded with 200 OK.");
+    } else {
+      ui.alert("⚠️ Connection Failed (HTTP " + response.getResponseCode() + ")\\n\\nResponse: " + response.getContentText());
+    }
+  } catch (err) {
+    ui.alert("❌ Error Connecting:\\n\\n" + err.toString());
+  }
 }
 `;
   };
@@ -441,6 +575,13 @@ function setupTrigger() {
 
           <div className="flex flex-wrap items-center gap-2">
             <span className="text-xs font-bold text-slate-500">Presets:</span>
+            <button
+              type="button"
+              onClick={() => applyPreset('meta_gb')}
+              className="px-2.5 py-1 bg-emerald-50 text-emerald-900 border border-emerald-300 rounded-lg text-xs font-bold hover:bg-emerald-100 transition shadow-2xs"
+            >
+              🌸 Meta Leads (Test Leads GB)
+            </button>
             <button
               type="button"
               onClick={() => applyPreset('meta')}
