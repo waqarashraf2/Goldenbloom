@@ -146,8 +146,10 @@ export default function CrmApp() {
 
   // Trigger manual or automatic refresh of all views
   const triggerRefresh = async (isManual = true) => {
-    if (isRefreshing) return;
-    setIsRefreshing(true);
+    if (isManual) {
+      if (isRefreshing) return;
+      setIsRefreshing(true);
+    }
     try {
       await Promise.all([
         loadStats(),
@@ -158,7 +160,9 @@ export default function CrmApp() {
     } catch (err) {
       console.error('Refresh error', err);
     } finally {
-      setTimeout(() => setIsRefreshing(false), 400);
+      if (isManual) {
+        setTimeout(() => setIsRefreshing(false), 400);
+      }
     }
   };
 

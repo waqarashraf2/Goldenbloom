@@ -10,11 +10,17 @@ export default function CallHistoryView({ currentUser, refreshTrigger }: { curre
   const [statusFilter, setStatusFilter] = useState('');
 
   useEffect(() => {
-    fetchLogs();
-  }, [statusFilter, refreshTrigger]);
+    fetchLogs(false);
+  }, [statusFilter]);
 
-  const fetchLogs = async () => {
-    setLoading(true);
+  useEffect(() => {
+    if (refreshTrigger && refreshTrigger > 0) {
+      fetchLogs(true);
+    }
+  }, [refreshTrigger]);
+
+  const fetchLogs = async (isSilent = false) => {
+    if (!isSilent) setLoading(true);
     try {
       const params = new URLSearchParams();
       if (statusFilter) params.append('call_status', statusFilter);
@@ -23,7 +29,7 @@ export default function CallHistoryView({ currentUser, refreshTrigger }: { curre
     } catch (err) {
       console.error('Failed to load call logs', err);
     } finally {
-      setLoading(false);
+      if (!isSilent) setLoading(false);
     }
   };
 

@@ -63,12 +63,24 @@ export default function LeadsView({ currentUser, telecallers, onOpenLogCall, ini
 
   const isAdmin = currentUser?.role === 'admin';
 
+  // 1. User-initiated search / filter / page changes -> show loading state
   useEffect(() => {
-    fetchLeads();
-  }, [search, sourceFilter, statusFilter, assignedFilter, todayFollowups, datePreset, fromDate, toDate, followupPreset, page, refreshTrigger]);
+    fetchLeads(false);
+  }, [search, sourceFilter, statusFilter, assignedFilter, todayFollowups, datePreset, fromDate, toDate, followupPreset, page]);
 
-  const fetchLeads = async () => {
-    setLoading(true);
+  // 2. Background polling / timer -> 100% SILENT in-place sync (never flicker or unmount table)
+  useEffect(() => {
+    if (refreshTrigger && refreshTrigger > 0) {
+      fetchLeads(true);
+    }
+  }, [refreshTrigger]);
+
+  const fetchLeads = async (isSilent = false) => {
+    // Only show full loading screen if NOT silent background poll
+    if (!isSilent) {
+      setLoading(true);
+    }
+
     try {
       const params = new URLSearchParams();
       if (search) params.append('search', search);
@@ -83,13 +95,57 @@ export default function LeadsView({ currentUser, telecallers, onOpenLogCall, ini
       params.append('page', String(page));
 
       const res = await apiRequest(`/leads?${params.toString()}`);
-      setLeads(res.data || []);
+      const freshLeads: Lead[] = res.data || [];
+
+      if (isSilent) {
+        // SMART IN-PLACE MERGE:
+        // Check if anything actually changed before triggering a re-render
+        setLeads(prevLeads => {
+          const prevMap = new Map(prevLeads.map(l => [l.id, l]));
+          let hasAnyDiff = false;
+
+          for (const fresh of freshLeads) {
+            const existing = prevMap.get(fresh.id);
+            if (!existing) {
+              hasAnyDiff = true;
+              break;
+            }
+            if (
+              existing.updated_at !== fresh.updated_at ||
+              existing.status !== fresh.status ||
+              existing.assigned_to !== fresh.assigned_to ||
+              existing.submissions_count !== fresh.submissions_count ||
+              existing.call_attempts !== fresh.call_attempts
+            ) {
+              hasAnyDiff = true;
+              break;
+            }
+          }
+
+          if (!hasAnyDiff && prevLeads.length !== freshLeads.length) {
+            hasAnyDiff = true;
+          }
+
+          // If no difference, keep previous state reference (zero re-render)
+          if (!hasAnyDiff) {
+            return prevLeads;
+          }
+
+          // Update data smoothly in-place without table unmounting
+          return freshLeads;
+        });
+      } else {
+        setLeads(freshLeads);
+      }
+
       setTotalPages(res.last_page || 1);
       setTotalLeadsCount(res.total || 0);
     } catch (err) {
       console.error('Failed to load leads', err);
     } finally {
-      setLoading(false);
+      if (!isSilent) {
+        setLoading(false);
+      }
     }
   };
 
@@ -446,7 +502,7 @@ export default function LeadsView({ currentUser, telecallers, onOpenLogCall, ini
             ) : (
               <button
                 type="button"
-                onClick={fetchLeads}
+                onClick={() => fetchLeads(false)}
                 className="w-full sm:w-auto px-3 py-1.5 bg-slate-50 hover:bg-slate-100 text-slate-600 border border-slate-200 rounded-lg text-xs font-medium flex items-center justify-center gap-1.5 transition cursor-pointer"
               >
                 <RotateCcw className="w-3.5 h-3.5 text-slate-400" />
