@@ -158,16 +158,78 @@ class LeadController extends Controller
             'assigned_to' => 'nullable|exists:users,id',
         ]);
 
+        $cleanPhone = preg_replace('/[^\+0-9]/', '', $validated['phone']);
+        $existing = Lead::where('phone', $cleanPhone)->first();
+        $timestamp = date('d M Y, h:i A');
+
+        if ($existing) {
+            $existingCustom = $existing->custom_fields ?? [];
+            $existingSubmissions = !empty($existingCustom['submissions']) && is_array($existingCustom['submissions'])
+                ? $existingCustom['submissions']
+                : [
+                    [
+                        'inquiry_number' => 1,
+                        'received_at' => $existing->created_at ? $existing->created_at->format('d M Y, h:i A') : $timestamp,
+                        'service' => $existing->service_requested,
+                        'campaign' => $existing->campaign_name,
+                        'source' => $existing->source,
+                        'notes' => $existing->lead_notes,
+                        'custom_fields' => array_diff_key($existingCustom, ['submissions' => true, 'submissions_count' => true]),
+                    ]
+                ];
+
+            $newSubmissionNumber = count($existingSubmissions) + 1;
+            $newSubmission = [
+                'inquiry_number' => $newSubmissionNumber,
+                'received_at' => $timestamp,
+                'service' => $validated['service_requested'] ?? $existing->service_requested,
+                'campaign' => $validated['campaign_name'] ?? $existing->campaign_name,
+                'source' => $validated['source'] ?? 'manual',
+                'notes' => $validated['lead_notes'] ?? 'Manual lead re-entry',
+                'custom_fields' => [],
+            ];
+            $existingSubmissions[] = $newSubmission;
+            $existingCustom['submissions'] = $existingSubmissions;
+            $existingCustom['submissions_count'] = count($existingSubmissions);
+
+            $existing->update([
+                'lead_notes' => ($existing->lead_notes ? $existing->lead_notes . "\n\n" : "") . "[Inquiry #{$newSubmissionNumber} on {$timestamp} via manual]: " . ($validated['lead_notes'] ?? 'Lead resubmitted.'),
+                'service_requested' => $validated['service_requested'] ?? $existing->service_requested,
+                'custom_fields' => $existingCustom,
+            ]);
+
+            return response()->json([
+                'message' => "Lead already exists with this phone number. Inquiry #{$newSubmissionNumber} added to history.",
+                'lead' => $existing->load('assignedUser'),
+                'is_duplicate' => true,
+            ], 200);
+        }
+
         $assignedTo = null;
         if ($user->role === 'telecaller') {
-            $assignedTo = $user->id; // Telecaller adding lead automatically assigns to self
+            $assignedTo = $user->id; // Telecaller adding lead manually assigns to self
         } elseif ($user->role === 'admin' && !empty($validated['assigned_to'])) {
             $assignedTo = $validated['assigned_to'];
         }
 
+        $initialCustom = [
+            'submissions' => [
+                [
+                    'inquiry_number' => 1,
+                    'received_at' => $timestamp,
+                    'service' => $validated['service_requested'] ?? null,
+                    'campaign' => $validated['campaign_name'] ?? null,
+                    'source' => $validated['source'] ?? 'manual',
+                    'notes' => $validated['lead_notes'] ?? null,
+                    'custom_fields' => [],
+                ]
+            ],
+            'submissions_count' => 1,
+        ];
+
         $lead = Lead::create([
             'name' => $validated['name'],
-            'phone' => $validated['phone'],
+            'phone' => $cleanPhone ?: $validated['phone'],
             'email' => $validated['email'] ?? null,
             'source' => $validated['source'] ?? 'manual',
             'status' => 'new',
@@ -177,6 +239,7 @@ class LeadController extends Controller
             'lead_notes' => $validated['lead_notes'] ?? null,
             'assigned_to' => $assignedTo,
             'assigned_at' => $assignedTo ? now() : null,
+            'custom_fields' => $initialCustom,
         ]);
 
         return response()->json([
@@ -387,12 +450,65 @@ class LeadController extends Controller
 
             $leadCampaign = ($campaignIdx !== -1 && !empty($row[$campaignIdx])) ? trim($row[$campaignIdx]) : $defaultCampaign;
 
+            $timestamp = date('d M Y, h:i A');
+
             // Check duplicate by phone
             $existing = Lead::where('phone', $phone)->first();
             if ($existing) {
+                $existingCustom = $existing->custom_fields ?? [];
+                $existingSubmissions = !empty($existingCustom['submissions']) && is_array($existingCustom['submissions'])
+                    ? $existingCustom['submissions']
+                    : [
+                        [
+                            'inquiry_number' => 1,
+                            'received_at' => $existing->created_at ? $existing->created_at->format('d M Y, h:i A') : $timestamp,
+                            'service' => $existing->service_requested,
+                            'campaign' => $existing->campaign_name,
+                            'source' => $existing->source,
+                            'notes' => $existing->lead_notes,
+                            'custom_fields' => array_diff_key($existingCustom, ['submissions' => true, 'submissions_count' => true]),
+                        ]
+                    ];
+
+                $newSubmissionNumber = count($existingSubmissions) + 1;
+                $newSubmission = [
+                    'inquiry_number' => $newSubmissionNumber,
+                    'received_at' => $timestamp,
+                    'service' => $service ?: $existing->service_requested,
+                    'campaign' => $leadCampaign ?: $existing->campaign_name,
+                    'source' => $leadSource,
+                    'notes' => $notes ?: 'Imported repeat CSV inquiry',
+                    'custom_fields' => $customFields,
+                ];
+
+                $existingSubmissions[] = $newSubmission;
+                $mergedCustom = array_merge($existingCustom, $customFields);
+                $mergedCustom['submissions'] = $existingSubmissions;
+                $mergedCustom['submissions_count'] = count($existingSubmissions);
+
+                $existing->update([
+                    'lead_notes' => ($existing->lead_notes ? $existing->lead_notes . "\n\n" : "") . "[Inquiry #{$newSubmissionNumber} on {$timestamp} via {$leadSource}]: " . ($notes ?: ($service ? "Service: {$service}" : "CSV repeat submission.")),
+                    'service_requested' => $service ?: $existing->service_requested,
+                    'custom_fields' => $mergedCustom,
+                ]);
+
                 $duplicatesSkipped++;
                 continue;
             }
+
+            $initialSubmissions = [
+                [
+                    'inquiry_number' => 1,
+                    'received_at' => $timestamp,
+                    'service' => $service,
+                    'campaign' => $leadCampaign,
+                    'source' => $leadSource,
+                    'notes' => $notes,
+                    'custom_fields' => $customFields,
+                ]
+            ];
+            $customFields['submissions'] = $initialSubmissions;
+            $customFields['submissions_count'] = 1;
 
             Lead::create([
                 'name' => $name,
@@ -403,7 +519,7 @@ class LeadController extends Controller
                 'service_requested' => $service,
                 'campaign_name' => $leadCampaign,
                 'lead_notes' => $notes,
-                'custom_fields' => !empty($customFields) ? $customFields : null,
+                'custom_fields' => $customFields,
                 'assigned_to' => null,
             ]);
 

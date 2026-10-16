@@ -41,6 +41,44 @@ class Lead extends Model
         ];
     }
 
+    protected $appends = [
+        'submissions_count',
+        'submissions',
+    ];
+
+    public function getSubmissionsAttribute(): array
+    {
+        $custom = $this->custom_fields ?? [];
+        if (!empty($custom['submissions']) && is_array($custom['submissions'])) {
+            return $custom['submissions'];
+        }
+
+        // Return synthesized initial submission
+        return [
+            [
+                'inquiry_number' => 1,
+                'received_at' => $this->created_at ? $this->created_at->format('d M Y, h:i A') : 'Initial Ingestion',
+                'service' => $this->service_requested,
+                'campaign' => $this->campaign_name,
+                'source' => $this->source,
+                'notes' => $this->lead_notes,
+                'custom_fields' => array_diff_key($custom, ['submissions' => true, 'submissions_count' => true]),
+            ]
+        ];
+    }
+
+    public function getSubmissionsCountAttribute(): int
+    {
+        $custom = $this->custom_fields ?? [];
+        if (!empty($custom['submissions_count'])) {
+            return (int) $custom['submissions_count'];
+        }
+        if (!empty($custom['submissions']) && is_array($custom['submissions'])) {
+            return count($custom['submissions']);
+        }
+        return 1;
+    }
+
     public function assignedUser(): BelongsTo
     {
         return $this->belongsTo(User::class, 'assigned_to');

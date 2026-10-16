@@ -5,8 +5,9 @@ import { Lead, User, apiRequest, API_BASE_URL } from '@/lib/api';
 import { 
   Search, Filter, Plus, PhoneCall, Phone, MessageSquare, Download, 
   RotateCcw, CheckCircle2, Clock, Calendar, AlertCircle, ArrowUpDown, 
-  UserCheck, Send, Sparkles, ExternalLink
+  UserCheck, Send, Sparkles, ExternalLink, Eye, Info
 } from 'lucide-react';
+import LeadDetailsModal from '@/components/LeadDetailsModal';
 
 interface LeadsViewProps {
   currentUser: User | null;
@@ -31,6 +32,9 @@ export default function LeadsView({ currentUser, telecallers, onOpenLogCall, ini
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [totalLeadsCount, setTotalLeadsCount] = useState(0);
+
+  // Lead Details Modal state
+  const [selectedDetailLead, setSelectedDetailLead] = useState<Lead | null>(null);
 
   // Sync if initialFilter changes externally
   useEffect(() => {
@@ -542,7 +546,7 @@ export default function LeadsView({ currentUser, telecallers, onOpenLogCall, ini
                         <div className="font-bold text-slate-900 text-xs flex items-center gap-1.5">
                           {lead.name}
                         </div>
-                        <div className="flex items-center gap-1.5 mt-0.5">
+                        <div className="flex flex-wrap items-center gap-1.5 mt-0.5">
                           <a 
                             href={`tel:${lead.phone}`} 
                             className="text-amber-800 font-medium hover:underline flex items-center gap-1 text-xs"
@@ -558,6 +562,18 @@ export default function LeadsView({ currentUser, telecallers, onOpenLogCall, ini
                           >
                             WhatsApp
                           </a>
+
+                          {/* REPEAT INQUIRIES COUNT BADGE */}
+                          {(lead.submissions_count && lead.submissions_count > 1) ? (
+                            <button
+                              type="button"
+                              onClick={() => setSelectedDetailLead(lead)}
+                              title={`Repeat inquiry detected! Received ${lead.submissions_count} times from this number. Click to view full dates & details.`}
+                              className="px-1.5 py-0.2 rounded-full bg-rose-100 hover:bg-rose-200 text-rose-800 border border-rose-300 text-[10px] font-extrabold flex items-center gap-0.5 transition shadow-2xs cursor-pointer animate-pulse"
+                            >
+                              <span>🔥 {lead.submissions_count} Inquiries</span>
+                            </button>
+                          ) : null}
                         </div>
                         {lead.email && (
                           <div className="text-[10px] text-slate-400 truncate max-w-[180px]">
@@ -659,15 +675,28 @@ export default function LeadsView({ currentUser, telecallers, onOpenLogCall, ini
                         )}
                       </td>
 
-                      {/* Log Call Action */}
+                      {/* Actions */}
                       <td className="py-2 px-3 text-right">
-                        <button
-                          onClick={() => onOpenLogCall(lead)}
-                          className="px-2.5 py-1 bg-amber-700 hover:bg-amber-800 text-white rounded-lg font-semibold text-xs shadow-2xs transition flex items-center gap-1 ml-auto"
-                        >
-                          <PhoneCall className="w-3 h-3" />
-                          <span>Log Call</span>
-                        </button>
+                        <div className="flex items-center justify-end gap-1.5">
+                          <button
+                            type="button"
+                            onClick={() => setSelectedDetailLead(lead)}
+                            title="View Full Lead Details & Received Dates History"
+                            className="px-2 py-1 bg-slate-100 hover:bg-amber-100 text-slate-700 hover:text-amber-900 border border-slate-200 hover:border-amber-300 rounded-lg text-xs font-semibold shadow-2xs transition flex items-center gap-1 cursor-pointer"
+                          >
+                            <Eye className="w-3.5 h-3.5 text-amber-700" />
+                            <span className="hidden xl:inline text-[11px]">Details</span>
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => onOpenLogCall(lead)}
+                            className="px-2.5 py-1 bg-amber-700 hover:bg-amber-800 text-white rounded-lg font-semibold text-xs shadow-2xs transition flex items-center gap-1 cursor-pointer"
+                          >
+                            <PhoneCall className="w-3 h-3" />
+                            <span>Log Call</span>
+                          </button>
+                        </div>
                       </td>
 
                     </tr>
@@ -817,6 +846,18 @@ export default function LeadsView({ currentUser, telecallers, onOpenLogCall, ini
             </form>
           </div>
         </div>
+      )}
+
+      {/* Lead Details & Inbound Submissions History Modal */}
+      {selectedDetailLead && (
+        <LeadDetailsModal
+          lead={selectedDetailLead}
+          onClose={() => setSelectedDetailLead(null)}
+          onOpenLogCall={onOpenLogCall}
+          isAdmin={isAdmin}
+          telecallers={telecallers}
+          onAssignLead={handleInlineAssign}
+        />
       )}
 
     </div>

@@ -126,30 +126,64 @@ class WebhookController extends Controller
             }
         }
 
-        // 3. Duplicate detection
+        // 3. Duplicate detection by phone
         $existing = null;
         if (!empty($phone)) {
             $existing = Lead::where('phone', $phone)->first();
         }
 
-        if ($existing) {
-            // Update existing lead note with repeat inquiry info
-            $timestamp = date('d M Y, h:i A');
-            $updatedNotes = ($existing->lead_notes ? $existing->lead_notes . "\n" : "") 
-                . "[Repeat Inquiry on {$timestamp} via {$source}]: " . ($notes ?: 'User resubmitted contact form.');
+        $timestamp = date('d M Y, h:i A');
 
-            $mergedCustom = array_merge($existing->custom_fields ?? [], $customFields);
+        if ($existing) {
+            // Retrieve existing submissions or synthesize initial
+            $existingCustom = $existing->custom_fields ?? [];
+            $existingSubmissions = !empty($existingCustom['submissions']) && is_array($existingCustom['submissions'])
+                ? $existingCustom['submissions']
+                : [
+                    [
+                        'inquiry_number' => 1,
+                        'received_at' => $existing->created_at ? $existing->created_at->format('d M Y, h:i A') : $timestamp,
+                        'service' => $existing->service_requested,
+                        'campaign' => $existing->campaign_name,
+                        'source' => $existing->source,
+                        'notes' => $existing->lead_notes,
+                        'custom_fields' => array_diff_key($existingCustom, ['submissions' => true, 'submissions_count' => true]),
+                    ]
+                ];
+
+            $newSubmissionNumber = count($existingSubmissions) + 1;
+            $newSubmission = [
+                'inquiry_number' => $newSubmissionNumber,
+                'received_at' => $timestamp,
+                'service' => $service ?: $existing->service_requested,
+                'campaign' => $campaign ?: $existing->campaign_name,
+                'source' => $source,
+                'notes' => $notes ?: 'Repeat inquiry submitted',
+                'custom_fields' => $customFields,
+            ];
+
+            $existingSubmissions[] = $newSubmission;
+
+            // Merge custom fields and attach submissions history
+            $mergedCustom = array_merge($existingCustom, $customFields);
+            $mergedCustom['submissions'] = $existingSubmissions;
+            $mergedCustom['submissions_count'] = count($existingSubmissions);
+
+            $updatedNotes = ($existing->lead_notes ? $existing->lead_notes . "\n\n" : "") 
+                . "[Inquiry #{$newSubmissionNumber} on {$timestamp} via {$source}]: " . ($notes ?: ($service ? "Service: {$service}" : "Repeat submission."));
 
             $existing->update([
                 'lead_notes' => $updatedNotes,
                 'service_requested' => $service ?: $existing->service_requested,
+                'campaign_name' => $campaign ?: $existing->campaign_name,
                 'custom_fields' => $mergedCustom,
             ]);
 
             return response()->json([
                 'success' => true,
-                'message' => 'Existing lead updated with new inquiry & custom columns.',
+                'message' => "Repeat inquiry #{$newSubmissionNumber} recorded for {$existing->name}.",
                 'lead_id' => $existing->id,
+                'submissions_count' => count($existingSubmissions),
                 'is_duplicate' => true,
             ]);
         }
@@ -157,7 +191,22 @@ class WebhookController extends Controller
         // 4. Inbound leads must always remain Unassigned until Admin manually assigns them
         $assignedTo = null;
 
-        // 5. Create new lead
+        // 5. Structure initial submission for brand new lead
+        $initialSubmissions = [
+            [
+                'inquiry_number' => 1,
+                'received_at' => $timestamp,
+                'service' => $service,
+                'campaign' => $campaign,
+                'source' => $source,
+                'notes' => $notes,
+                'custom_fields' => $customFields,
+            ]
+        ];
+        $customFields['submissions'] = $initialSubmissions;
+        $customFields['submissions_count'] = 1;
+
+        // 6. Create new lead
         $newLead = Lead::create([
             'name' => $name,
             'phone' => $phone,
@@ -169,7 +218,7 @@ class WebhookController extends Controller
             'ad_name' => $adName,
             'lead_notes' => $notes,
             'assigned_to' => $assignedTo,
-            'assigned_at' => $assignedTo ? now() : null,
+            'assigned_at' => null,
             'custom_fields' => $customFields,
         ]);
 
@@ -178,6 +227,7 @@ class WebhookController extends Controller
             'message' => 'Lead created successfully.',
             'lead_id' => $newLead->id,
             'assigned_to' => $assignedTo,
+            'submissions_count' => 1,
             'custom_fields_saved' => count($customFields),
         ], 201);
     }

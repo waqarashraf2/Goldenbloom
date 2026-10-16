@@ -31,6 +31,16 @@ export interface Lead {
   next_follow_up_date?: string | null;
   call_attempts: number;
   call_logs?: CallLog[];
+  submissions_count?: number;
+  submissions?: Array<{
+    inquiry_number: number;
+    received_at: string;
+    service?: string | null;
+    campaign?: string | null;
+    source?: string | null;
+    notes?: string | null;
+    custom_fields?: Record<string, any> | null;
+  }>;
   custom_fields?: Record<string, any> | null;
   created_at: string;
   updated_at: string;

@@ -143,6 +143,9 @@ jobs:
             # Fix storage permissions
             chmod -R 775 storage bootstrap/cache
 
+            # Run migrations
+            php artisan migrate --force || true
+
             # Clear cache
             php artisan config:clear || true
             php artisan cache:clear || true
