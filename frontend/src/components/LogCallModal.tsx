@@ -11,6 +11,7 @@ interface LogCallModalProps {
   lead: Lead | null;
   onClose: () => void;
   onSuccess: (updatedLead: Lead) => void;
+  isAdmin?: boolean;
 }
 
 const toLocalDatetime = (dateStr?: string | null): string => {
@@ -25,7 +26,7 @@ const toLocalDatetime = (dateStr?: string | null): string => {
   }
 };
 
-export default function LogCallModal({ lead, onClose, onSuccess }: LogCallModalProps) {
+export default function LogCallModal({ lead, onClose, onSuccess, isAdmin }: LogCallModalProps) {
   const [callStatus, setCallStatus] = useState<'connected' | 'no_answer' | 'busy' | 'switched_off' | 'callback_requested'>('connected');
   const [outcome, setOutcome] = useState<string>('interested');
   const [notes, setNotes] = useState('');
@@ -155,7 +156,7 @@ export default function LogCallModal({ lead, onClose, onSuccess }: LogCallModalP
         <div className="p-4 sm:p-5 overflow-y-auto space-y-4 flex-1 text-slate-800">
           
           {/* Quick Lead Info Bar */}
-          <div className="bg-slate-50 p-3 rounded-xl border border-slate-200 grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
+          <div className={`bg-slate-50 p-3 rounded-xl border border-slate-200 grid grid-cols-2 ${isAdmin ? 'sm:grid-cols-4' : 'sm:grid-cols-3'} gap-3 text-xs`}>
             <div className="min-w-0">
               <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">Phone</span>
               <div className="flex flex-wrap items-center gap-1.5 mt-0.5">
@@ -173,12 +174,14 @@ export default function LogCallModal({ lead, onClose, onSuccess }: LogCallModalP
               </div>
             </div>
 
-            <div className="min-w-0">
-              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">Lead Source</span>
-              <span className="font-bold text-slate-800 uppercase mt-0.5 block truncate text-xs">
-                {lead.source?.replace('_', ' ')}
-              </span>
-            </div>
+            {isAdmin && (
+              <div className="min-w-0">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">Lead Source</span>
+                <span className="font-bold text-slate-800 uppercase mt-0.5 block truncate text-xs">
+                  {lead.source?.replace('_', ' ') || 'Direct'}
+                </span>
+              </div>
+            )}
 
             <div className="min-w-0">
               <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">Current Status</span>

@@ -246,7 +246,7 @@ export default function LeadDetailsModal({
                     </div>
 
                     <div className="flex items-center gap-2">
-                      {sub.source && getSourceBadge(sub.source)}
+                      {isAdmin && sub.source && getSourceBadge(sub.source)}
                       <span className="text-[11px] font-semibold text-slate-600 flex items-center gap-1 bg-white px-2 py-0.5 rounded border border-slate-200">
                         <Clock className="w-3 h-3 text-amber-700" />
                         {sub.received_at}
@@ -353,7 +353,7 @@ export default function LeadDetailsModal({
         {/* Modal Footer */}
         <div className="p-3 bg-slate-50 border-t border-slate-200 flex items-center justify-between">
           <div className="text-[11px] text-slate-400">
-            Lead ID #{lead.id} &bull; Received via {lead.source}
+            Lead ID #{lead.id} {isAdmin && lead.source ? <>&bull; Received via {lead.source}</> : null}
           </div>
 
           <div className="flex items-center gap-2">

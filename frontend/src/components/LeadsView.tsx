@@ -177,10 +177,10 @@ export default function LeadsView({ currentUser, telecallers, onOpenLogCall, ini
           name: addName.trim(),
           phone: addPhone.trim(),
           email: addEmail.trim() || null,
-          source: addSource,
+          source: isAdmin ? addSource : 'manual',
           service_requested: addService.trim() || null,
           lead_notes: addNotes.trim() || null,
-          assigned_to: addAssignedTo ? parseInt(addAssignedTo) : null,
+          assigned_to: isAdmin ? (addAssignedTo ? parseInt(addAssignedTo) : null) : (currentUser?.id || null),
         }),
       });
 
@@ -343,7 +343,7 @@ export default function LeadsView({ currentUser, telecallers, onOpenLogCall, ini
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-2">
           
           {/* Search Box */}
-          <div className="lg:col-span-2 relative">
+          <div className={`${isAdmin ? 'lg:col-span-2' : 'lg:col-span-3'} relative`}>
             <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-2.5" />
             <input
               type="text"
@@ -354,20 +354,22 @@ export default function LeadsView({ currentUser, telecallers, onOpenLogCall, ini
             />
           </div>
 
-          {/* Filter: Source */}
-          <div>
-            <select
-              value={sourceFilter}
-              onChange={(e) => setSourceFilter(e.target.value)}
-              className="w-full py-1.5 px-2.5 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-700 focus:ring-2 focus:ring-amber-500"
-            >
-              <option value="">All Sources</option>
-              <option value="website">Website (goldenbloom.ae)</option>
-              <option value="facebook_ads">Facebook Ads</option>
-              <option value="google_sheet">Google Sheet Sync</option>
-              <option value="csv_import">CSV File Import</option>
-            </select>
-          </div>
+          {/* Filter: Source (Admin Only) */}
+          {isAdmin && (
+            <div>
+              <select
+                value={sourceFilter}
+                onChange={(e) => setSourceFilter(e.target.value)}
+                className="w-full py-1.5 px-2.5 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-700 focus:ring-2 focus:ring-amber-500"
+              >
+                <option value="">All Sources</option>
+                <option value="website">Website (goldenbloom.ae)</option>
+                <option value="facebook_ads">Facebook Ads</option>
+                <option value="google_sheet">Google Sheet Sync</option>
+                <option value="csv_import">CSV File Import</option>
+              </select>
+            </div>
+          )}
 
           {/* Filter: Status */}
           <div>
@@ -568,7 +570,7 @@ export default function LeadsView({ currentUser, telecallers, onOpenLogCall, ini
                   )}
                   <th className="py-2.5 px-3">Contact / Client</th>
                   <th className="py-2.5 px-3">Service Required</th>
-                  <th className="py-2.5 px-3">Source</th>
+                  {isAdmin && <th className="py-2.5 px-3">Source</th>}
                   <th className="py-2.5 px-3">Status</th>
                   {isAdmin && <th className="py-2.5 px-3">Assigned Agent</th>}
                   <th className="py-2.5 px-3">Next Follow-up</th>
@@ -673,10 +675,12 @@ export default function LeadsView({ currentUser, telecallers, onOpenLogCall, ini
                         )}
                       </td>
 
-                      {/* Source */}
-                      <td className="py-2 px-3">
-                        {getSourceBadge(lead.source)}
-                      </td>
+                      {/* Source (Admin Only) */}
+                      {isAdmin && (
+                        <td className="py-2 px-3">
+                          {getSourceBadge(lead.source)}
+                        </td>
+                      )}
 
                       {/* Status */}
                       <td className="py-2 px-3">
@@ -830,21 +834,21 @@ export default function LeadsView({ currentUser, telecallers, onOpenLogCall, ini
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block font-bold text-slate-700 mb-1">Lead Source</label>
-                  <select
-                    value={addSource}
-                    onChange={(e) => setAddSource(e.target.value)}
-                    className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl"
-                  >
-                    <option value="website">Website Direct</option>
-                    <option value="facebook_ads">Facebook Ads</option>
-                    <option value="google_sheet">Google Sheet</option>
-                    <option value="manual">Walk-in / Direct Call</option>
-                  </select>
-                </div>
-                {isAdmin && (
+              {isAdmin && (
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block font-bold text-slate-700 mb-1">Lead Source</label>
+                    <select
+                      value={addSource}
+                      onChange={(e) => setAddSource(e.target.value)}
+                      className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl"
+                    >
+                      <option value="website">Website Direct</option>
+                      <option value="facebook_ads">Facebook Ads</option>
+                      <option value="google_sheet">Google Sheet</option>
+                      <option value="manual">Walk-in / Direct Call</option>
+                    </select>
+                  </div>
                   <div>
                     <label className="block font-bold text-slate-700 mb-1">Assign To</label>
                     <select
@@ -858,8 +862,8 @@ export default function LeadsView({ currentUser, telecallers, onOpenLogCall, ini
                       ))}
                     </select>
                   </div>
-                )}
-              </div>
+                </div>
+              )}
 
               <div>
                 <label className="block font-bold text-slate-700 mb-1">Service / Requirement</label>

@@ -664,6 +664,7 @@ export default function CrmApp() {
           lead={activeCallModalLead}
           onClose={() => setActiveCallModalLead(null)}
           onSuccess={handleCallLogged}
+          isAdmin={currentUser?.role === 'admin'}
         />
       )}
 

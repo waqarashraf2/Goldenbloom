@@ -413,7 +413,7 @@ export default function DashboardView({ stats, currentUser, onNavigateToLeads, o
                               {log.lead?.name || 'Inbound Lead'}
                             </span>
                             <span className="text-amber-800 font-semibold text-[11px]">{log.lead?.phone}</span>
-                            {log.lead?.source && (
+                            {!isTelecaller && log.lead?.source && (
                               <span className="px-1.5 py-0.2 bg-white border border-slate-200 rounded text-[9px] font-medium text-slate-600 uppercase">
                                 {log.lead.source}
                               </span>
