@@ -280,6 +280,7 @@ class LeadController extends Controller
             'ad_name' => $validated['ad_name'] ?? null,
             'lead_notes' => $validated['lead_notes'] ?? null,
             'assigned_to' => $assignedTo,
+            'assigned_user_name' => $assignedTo ? (User::find($assignedTo)?->name) : null,
             'assigned_at' => $assignedTo ? now() : null,
             'custom_fields' => $initialCustom,
         ]);
@@ -330,9 +331,15 @@ class LeadController extends Controller
 
         $userId = $validated['user_id'];
         $assignedAt = $userId ? now() : null;
+        $assignedUserName = null;
+        if ($userId) {
+            $u = User::withTrashed()->find($userId);
+            $assignedUserName = $u ? $u->name : null;
+        }
 
         Lead::whereIn('id', $validated['lead_ids'])->update([
             'assigned_to' => $userId,
+            'assigned_user_name' => $assignedUserName,
             'assigned_at' => $assignedAt,
         ]);
 
@@ -368,6 +375,7 @@ class LeadController extends Controller
             $agent = $telecallers[$index % $count];
             $lead->update([
                 'assigned_to' => $agent->id,
+                'assigned_user_name' => $agent->name,
                 'assigned_at' => now(),
             ]);
             $index++;

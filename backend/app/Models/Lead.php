@@ -18,6 +18,7 @@ class Lead extends Model
         'source',
         'status',
         'assigned_to',
+        'assigned_user_name',
         'assigned_at',
         'service_requested',
         'campaign_name',
@@ -81,7 +82,7 @@ class Lead extends Model
 
     public function assignedUser(): BelongsTo
     {
-        return $this->belongsTo(User::class, 'assigned_to');
+        return $this->belongsTo(User::class, 'assigned_to')->withTrashed();
     }
 
     public function callLogs(): HasMany

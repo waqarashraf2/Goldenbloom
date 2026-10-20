@@ -100,7 +100,12 @@ export default function LeadDetailsModal({
 
               {lead.assigned_to ? (
                 <span className="text-[10px] font-medium bg-white/10 px-2 py-0.5 rounded-full">
-                  Agent: {lead.assigned_user?.name || `User #${lead.assigned_to}`}
+                  Agent: {lead.assigned_user?.name || lead.assigned_user_name || `User #${lead.assigned_to}`}
+                  {(lead.assigned_user?.deleted_at || (lead.assigned_user && !lead.assigned_user.is_active)) ? ' (Former Agent)' : ''}
+                </span>
+              ) : lead.assigned_user_name ? (
+                <span className="text-[10px] font-medium bg-white/10 px-2 py-0.5 rounded-full">
+                  Past Agent: {lead.assigned_user_name} (Unassigned)
                 </span>
               ) : (
                 <span className="text-[10px] font-bold bg-amber-400 text-amber-950 px-2 py-0.5 rounded-full">
@@ -195,19 +200,33 @@ export default function LeadDetailsModal({
                   value={lead.assigned_to || ''}
                   onChange={(e) => onAssignLead(lead.id, e.target.value)}
                   className={`w-full p-1.5 rounded-lg text-xs font-semibold border ${
-                    lead.assigned_to 
-                      ? 'bg-slate-50 border-slate-200 text-slate-800' 
-                      : 'bg-rose-50 border-rose-300 text-rose-800'
+                    !lead.assigned_to 
+                      ? 'bg-rose-50 border-rose-300 text-rose-800' 
+                      : (lead.assigned_user?.deleted_at || !telecallers.some(t => t.id === lead.assigned_to))
+                      ? 'bg-slate-100 border-slate-300 text-slate-700 italic'
+                      : 'bg-slate-50 border-slate-200 text-slate-800'
                   }`}
                 >
                   <option value="">⚠️ Unassigned (Keep in Pool)</option>
+                  {lead.assigned_to && !telecallers.some(t => t.id === lead.assigned_to) && (
+                    <option value={lead.assigned_to}>
+                      👤 {lead.assigned_user?.name || lead.assigned_user_name || 'Former Agent'} (Former Agent)
+                    </option>
+                  )}
                   {telecallers.map((t) => (
                     <option key={t.id} value={t.id}>{t.name} ({t.email})</option>
                   ))}
                 </select>
               ) : (
                 <div className="font-semibold text-slate-800">
-                  {lead.assigned_user?.name || (
+                  {lead.assigned_user?.name || lead.assigned_user_name ? (
+                    <span>
+                      {lead.assigned_user?.name || lead.assigned_user_name}
+                      {(lead.assigned_user?.deleted_at || (lead.assigned_user && !lead.assigned_user.is_active)) ? (
+                        <span className="text-[11px] text-slate-500 ml-1 font-normal italic">(Former Agent)</span>
+                      ) : null}
+                    </span>
+                  ) : (
                     <span className="text-rose-700 font-bold">⚠️ Unassigned Lead</span>
                   )}
                 </div>

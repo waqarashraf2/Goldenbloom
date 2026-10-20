@@ -108,27 +108,35 @@ class UserController extends Controller
         $reassignTo = $request->input('reassign_to');
         $leadCount = $user->leads()->count();
 
-        if (!empty($reassignTo) && $reassignTo !== 'unassigned') {
+        if (!empty($reassignTo) && $reassignTo !== 'unassigned' && $reassignTo !== 'keep_name') {
             $targetUser = User::find($reassignTo);
             if (!$targetUser) {
                 return response()->json(['message' => 'The selected telecaller to reassign leads does not exist.'], 422);
             }
             $user->leads()->update([
                 'assigned_to' => $targetUser->id,
+                'assigned_user_name' => $targetUser->name,
                 'assigned_at' => now(),
             ]);
             $actionMsg = "{$leadCount} lead(s) successfully reassigned to {$targetUser->name}.";
-        } else {
-            // Move leads to Unassigned Pool (Triage) for Admin & Super Admin review
+        } elseif ($reassignTo === 'unassigned') {
             $user->leads()->update([
                 'assigned_to' => null,
                 'assigned_at' => null,
             ]);
             $actionMsg = "{$leadCount} lead(s) moved to Unassigned Triage pool.";
+        } else {
+            // Keep original handler name on leads so historical agent is permanently visible
+            $user->leads()->update([
+                'assigned_user_name' => $user->name,
+            ]);
+            $actionMsg = "{$leadCount} lead(s) will continue showing \"{$user->name} (Former Agent)\" until reassigned.";
         }
 
         $userName = $user->name;
-        $user->delete();
+        $user->is_active = false;
+        $user->save();
+        $user->delete(); // Soft deletes user so historical logs & assignments remain intact!
 
         return response()->json([
             'message' => "Team member \"{$userName}\" deleted successfully. {$actionMsg}",

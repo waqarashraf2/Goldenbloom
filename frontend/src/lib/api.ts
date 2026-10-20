@@ -10,6 +10,7 @@ export interface User {
   allowed_tabs?: string[];
   leads_count?: number;
   call_logs_count?: number;
+  deleted_at?: string | null;
 }
 
 export interface Lead {
@@ -21,6 +22,7 @@ export interface Lead {
   status: 'new' | 'connected' | 'not_connected' | 'follow_up' | 'interested' | 'not_interested' | 'closed_won' | 'closed_lost';
   assigned_to?: number | null;
   assigned_user?: User | null;
+  assigned_user_name?: string | null;
   assigned_at?: string | null;
   service_requested?: string | null;
   campaign_name?: string | null;

@@ -783,12 +783,19 @@ export default function LeadsView({ currentUser, telecallers, onOpenLogCall, ini
                             value={lead.assigned_to || ''}
                             onChange={(e) => handleInlineAssign(lead.id, e.target.value)}
                             className={`p-1 rounded-md text-[11px] font-semibold border ${
-                              lead.assigned_to 
-                                ? 'bg-slate-50 border-slate-200 text-slate-800' 
-                                : 'bg-rose-50 border-rose-300 text-rose-800'
+                              !lead.assigned_to 
+                                ? 'bg-rose-50 border-rose-300 text-rose-800'
+                                : (lead.assigned_user?.deleted_at || !telecallers.some(t => t.id === lead.assigned_to))
+                                ? 'bg-slate-100 border-slate-300 text-slate-700 italic'
+                                : 'bg-slate-50 border-slate-200 text-slate-800'
                             }`}
                           >
                             <option value="">⚠️ Unassigned</option>
+                            {lead.assigned_to && !telecallers.some(t => t.id === lead.assigned_to) && (
+                              <option value={lead.assigned_to}>
+                                👤 {lead.assigned_user?.name || lead.assigned_user_name || 'Former Agent'} (Former Agent)
+                              </option>
+                            )}
                             {telecallers.map((t) => (
                               <option key={t.id} value={t.id}>{t.name}</option>
                             ))}

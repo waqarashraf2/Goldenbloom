@@ -39,7 +39,7 @@ export default function TelecallersView({ currentUser, onUsersUpdated }: Telecal
 
   // Delete User Modal State (Smart Lead Reassignment)
   const [deletingUser, setDeletingUser] = useState<User | null>(null);
-  const [deleteReassignChoice, setDeleteReassignChoice] = useState<'triage' | 'reassign'>('triage');
+  const [deleteReassignChoice, setDeleteReassignChoice] = useState<'keep_name' | 'triage' | 'reassign'>('keep_name');
   const [deleteReassignTo, setDeleteReassignTo] = useState('');
   const [deleteLoading, setDeleteLoading] = useState(false);
 
@@ -161,7 +161,7 @@ export default function TelecallersView({ currentUser, onUsersUpdated }: Telecal
 
   const handleOpenDelete = (user: User) => {
     setDeletingUser(user);
-    setDeleteReassignChoice('triage');
+    setDeleteReassignChoice('keep_name');
     setDeleteReassignTo('');
   };
 
@@ -169,16 +169,23 @@ export default function TelecallersView({ currentUser, onUsersUpdated }: Telecal
     if (!deletingUser) return;
 
     if (deleteReassignChoice === 'reassign' && !deleteReassignTo) {
-      alert('Please select another telecaller to reassign the leads, or choose the Unassigned Triage pool option.');
+      alert('Please select another telecaller to reassign the leads, or choose another option.');
       return;
     }
 
     setDeleteLoading(true);
     try {
+      let reassignPayload: string | number = 'keep_name';
+      if (deleteReassignChoice === 'reassign') {
+        reassignPayload = parseInt(deleteReassignTo);
+      } else if (deleteReassignChoice === 'triage') {
+        reassignPayload = 'unassigned';
+      }
+
       const res = await apiRequest(`/users/${deletingUser.id}`, {
         method: 'DELETE',
         body: JSON.stringify({
-          reassign_to: deleteReassignChoice === 'reassign' ? parseInt(deleteReassignTo) : null,
+          reassign_to: reassignPayload,
         }),
       });
 
@@ -607,7 +614,27 @@ export default function TelecallersView({ currentUser, onUsersUpdated }: Telecal
             {/* Options */}
             <div className="space-y-2.5 text-xs">
               
-              {/* Option A: Move to Unassigned Triage */}
+              {/* Option 1: Keep Name on Leads (Default & Safest) */}
+              <label className={`p-3 rounded-xl border block cursor-pointer transition ${
+                deleteReassignChoice === 'keep_name'
+                  ? 'bg-amber-50/60 border-amber-400 shadow-2xs'
+                  : 'bg-white border-slate-200 hover:bg-slate-50'
+              }`}>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="radio"
+                    name="delete_reassign"
+                    checked={deleteReassignChoice === 'keep_name'}
+                    onChange={() => setDeleteReassignChoice('keep_name')}
+                  />
+                  <strong className="text-slate-900">Keep Member's Name on Leads (Recommended)</strong>
+                </div>
+                <p className="text-[11px] text-slate-500 mt-1 pl-5">
+                  All {deletingUser.leads_count ?? 0} leads will keep {deletingUser.name}'s name visible as <em>"{deletingUser.name} (Former Agent)"</em>. Historical call logs and assignments are 100% preserved. Admins can reassign them one-by-one anytime.
+                </p>
+              </label>
+
+              {/* Option 2: Move to Unassigned Triage */}
               <label className={`p-3 rounded-xl border block cursor-pointer transition ${
                 deleteReassignChoice === 'triage'
                   ? 'bg-amber-50/60 border-amber-400 shadow-2xs'
@@ -620,14 +647,14 @@ export default function TelecallersView({ currentUser, onUsersUpdated }: Telecal
                     checked={deleteReassignChoice === 'triage'}
                     onChange={() => setDeleteReassignChoice('triage')}
                   />
-                  <strong className="text-slate-900">Move to Unassigned Triage Pool (Recommended)</strong>
+                  <strong className="text-slate-900">Move Leads to Unassigned Triage Pool</strong>
                 </div>
                 <p className="text-[11px] text-slate-500 mt-1 pl-5">
                   All {deletingUser.leads_count ?? 0} leads will be unassigned and placed into the Unassigned Pool for Admin &amp; Super Admin to review and distribute later.
                 </p>
               </label>
 
-              {/* Option B: Reassign to Another Active Telecaller */}
+              {/* Option 3: Reassign to Another Active Telecaller */}
               <label className={`p-3 rounded-xl border block cursor-pointer transition ${
                 deleteReassignChoice === 'reassign'
                   ? 'bg-amber-50/60 border-amber-400 shadow-2xs'
@@ -640,7 +667,7 @@ export default function TelecallersView({ currentUser, onUsersUpdated }: Telecal
                     checked={deleteReassignChoice === 'reassign'}
                     onChange={() => setDeleteReassignChoice('reassign')}
                   />
-                  <strong className="text-slate-900">Reassign Leads to Another Active Telecaller</strong>
+                  <strong className="text-slate-900">Reassign All Leads to Another Active Telecaller</strong>
                 </div>
                 <p className="text-[11px] text-slate-500 mt-1 pl-5">
                   Immediately transfer all {deletingUser.leads_count ?? 0} leads directly to another team member.
@@ -650,7 +677,7 @@ export default function TelecallersView({ currentUser, onUsersUpdated }: Telecal
                   <div className="mt-2.5 pl-5">
                     {otherActiveTelecallers.length === 0 ? (
                       <p className="text-[11px] text-rose-600 font-semibold">
-                        No other active telecallers found. Please select the Unassigned Triage pool option above.
+                        No other active telecallers found. Please select one of the options above.
                       </p>
                     ) : (
                       <select
