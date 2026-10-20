@@ -11,7 +11,7 @@ class UserController extends Controller
 {
     public function index(Request $request)
     {
-        if ($request->user()->role !== 'admin') {
+        if (!$request->user()->isAdmin()) {
             return response()->json(['message' => 'Unauthorized.'], 403);
         }
 
@@ -22,16 +22,18 @@ class UserController extends Controller
 
     public function store(Request $request)
     {
-        if ($request->user()->role !== 'admin') {
+        if (!$request->user()->isAdmin()) {
             return response()->json(['message' => 'Unauthorized.'], 403);
         }
+
+        $allowedRoles = $request->user()->role === 'super_admin' ? 'super_admin,admin,telecaller' : 'telecaller';
 
         $validated = $request->validate([
             'name' => 'required|string|max:255',
             'email' => 'required|email|unique:users,email',
             'password' => 'required|string|min:6',
             'phone' => 'nullable|string|max:50',
-            'role' => 'required|string|in:admin,telecaller',
+            'role' => 'required|string|in:' . $allowedRoles,
             'allowed_tabs' => 'nullable|array',
         ]);
 
@@ -42,8 +44,8 @@ class UserController extends Controller
             'phone' => $validated['phone'] ?? null,
             'role' => $validated['role'],
             'is_active' => true,
-            'allowed_tabs' => $validated['allowed_tabs'] ?? ($validated['role'] === 'admin' 
-                ? ['dashboard', 'leads', 'followups', 'telecallers', 'import', 'settings', 'reports']
+            'allowed_tabs' => $validated['allowed_tabs'] ?? (in_array($validated['role'], ['admin', 'super_admin'])
+                ? ['dashboard', 'leads', 'followups', 'telecallers', 'import', 'settings', 'reports', 'activities', 'integrations']
                 : ['leads', 'followups', 'call_history']),
         ]);
 
@@ -55,7 +57,7 @@ class UserController extends Controller
 
     public function update(Request $request, User $user)
     {
-        if ($request->user()->role !== 'admin') {
+        if (!$request->user()->isAdmin()) {
             return response()->json(['message' => 'Unauthorized.'], 403);
         }
 
@@ -84,12 +86,20 @@ class UserController extends Controller
 
     public function destroy(Request $request, User $user)
     {
-        if ($request->user()->role !== 'admin') {
+        if (!$request->user()->isAdmin()) {
             return response()->json(['message' => 'Unauthorized.'], 403);
         }
 
         if ($user->id === $request->user()->id) {
             return response()->json(['message' => 'You cannot delete yourself.'], 422);
+        }
+
+        if ($user->role === 'super_admin') {
+            return response()->json(['message' => 'Super Admin account cannot be deleted.'], 403);
+        }
+
+        if ($user->role === 'admin' && $request->user()->role !== 'super_admin') {
+            return response()->json(['message' => 'Only Super Admin can delete admin accounts.'], 403);
         }
 
         // Reassign leads to null

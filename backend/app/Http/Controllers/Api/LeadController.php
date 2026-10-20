@@ -239,7 +239,7 @@ class LeadController extends Controller
         $assignedTo = null;
         if ($user->role === 'telecaller') {
             $assignedTo = $user->id; // Telecaller adding lead manually assigns to self
-        } elseif ($user->role === 'admin' && !empty($validated['assigned_to'])) {
+        } elseif ($user->isAdmin() && !empty($validated['assigned_to'])) {
             $assignedTo = $validated['assigned_to'];
         }
 
@@ -307,7 +307,7 @@ class LeadController extends Controller
     // Assign single or multiple leads (Admin Only)
     public function assign(Request $request)
     {
-        if ($request->user()->role !== 'admin') {
+        if (!$request->user()->isAdmin()) {
             return response()->json(['message' => 'Only admins can assign leads.'], 403);
         }
 
@@ -333,7 +333,7 @@ class LeadController extends Controller
     // Auto round-robin distribute unassigned leads (Admin Only)
     public function autoDistribute(Request $request)
     {
-        if ($request->user()->role !== 'admin') {
+        if (!$request->user()->isAdmin()) {
             return response()->json(['message' => 'Unauthorized.'], 403);
         }
 
@@ -569,7 +569,7 @@ class LeadController extends Controller
     // Export CSV (Admin Only)
     public function exportCsv(Request $request)
     {
-        if ($request->user()->role !== 'admin') {
+        if (!$request->user()->isAdmin()) {
             return response()->json(['message' => 'Unauthorized.'], 403);
         }
 
@@ -611,12 +611,53 @@ class LeadController extends Controller
 
     public function destroy(Request $request, Lead $lead)
     {
-        if ($request->user()->role !== 'admin') {
-            return response()->json(['message' => 'Only admins can delete leads.'], 403);
+        if ($request->user()->role !== 'super_admin') {
+            return response()->json(['message' => 'Unauthorized: Only Super Admin can delete leads.'], 403);
         }
 
+        $lead->callLogs()->delete();
         $lead->delete();
 
-        return response()->json(['message' => 'Lead deleted successfully.']);
+        return response()->json(['message' => 'Lead permanently deleted.']);
+    }
+
+    public function bulkDelete(Request $request)
+    {
+        if ($request->user()->role !== 'super_admin') {
+            return response()->json(['message' => 'Unauthorized: Only Super Admin can delete leads.'], 403);
+        }
+
+        $validated = $request->validate([
+            'lead_ids' => 'required|array|min:1',
+            'lead_ids.*' => 'integer|exists:leads,id',
+        ]);
+
+        $count = count($validated['lead_ids']);
+        \App\Models\CallLog::whereIn('lead_id', $validated['lead_ids'])->delete();
+        Lead::whereIn('id', $validated['lead_ids'])->delete();
+
+        return response()->json([
+            'message' => "Successfully deleted {$count} lead(s).",
+            'deleted_count' => $count,
+        ]);
+    }
+
+    public function cleanDemoData(Request $request)
+    {
+        if ($request->user()->role !== 'super_admin') {
+            return response()->json(['message' => 'Unauthorized: Only Super Admin can clean demo data.'], 403);
+        }
+
+        $leadCount = Lead::count();
+        $callLogCount = \App\Models\CallLog::count();
+
+        \App\Models\CallLog::query()->delete();
+        Lead::query()->delete();
+
+        return response()->json([
+            'message' => "Demo data cleaned successfully. Removed {$leadCount} leads and {$callLogCount} call logs.",
+            'deleted_leads' => $leadCount,
+            'deleted_call_logs' => $callLogCount,
+        ]);
     }
 }

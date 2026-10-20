@@ -13,20 +13,33 @@ class DatabaseSeeder extends Seeder
 {
     public function run(): void
     {
-        // 1. Create Admin
-        $admin = User::firstOrCreate(
-            ['email' => 'admin@goldenbloom.ae'],
+        // 1. Create Super Admin
+        $superAdmin = User::updateOrCreate(
+            ['email' => 'superadmin@goldenbloom.ae'],
             [
-                'name' => 'Golden Bloom Admin',
-                'password' => Hash::make('password123'),
-                'role' => 'admin',
-                'phone' => '+971500000000',
+                'name' => 'Golden Bloom Super Admin',
+                'password' => Hash::make('Golden@123'),
+                'role' => 'super_admin',
+                'phone' => '+971500000001',
                 'is_active' => true,
-                'allowed_tabs' => ['dashboard', 'leads', 'followups', 'telecallers', 'import', 'settings', 'reports'],
+                'allowed_tabs' => ['dashboard', 'leads', 'followups', 'telecallers', 'import', 'settings', 'reports', 'activities', 'integrations'],
             ]
         );
 
-        // 2. Create Telecallers
+        // 2. Create Admin
+        $admin = User::updateOrCreate(
+            ['email' => 'admin@goldenbloom.ae'],
+            [
+                'name' => 'Golden Bloom Admin',
+                'password' => Hash::make('GoldenBloom@123'),
+                'role' => 'admin',
+                'phone' => '+971500000000',
+                'is_active' => true,
+                'allowed_tabs' => ['dashboard', 'leads', 'followups', 'telecallers', 'import', 'settings', 'reports', 'activities', 'integrations'],
+            ]
+        );
+
+        // 3. Create Telecallers
         $telecaller1 = User::firstOrCreate(
             ['email' => 'sarah@goldenbloom.ae'],
             [

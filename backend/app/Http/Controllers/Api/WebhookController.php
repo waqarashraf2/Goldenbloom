@@ -235,7 +235,7 @@ class WebhookController extends Controller
     // Get CRM Settings (Admin only)
     public function getSettings(Request $request)
     {
-        if ($request->user()->role !== 'admin') {
+        if (!$request->user()->isAdmin()) {
             return response()->json(['message' => 'Unauthorized.'], 403);
         }
 
@@ -258,7 +258,7 @@ class WebhookController extends Controller
     // Update CRM Settings (Admin only)
     public function updateSettings(Request $request)
     {
-        if ($request->user()->role !== 'admin') {
+        if (!$request->user()->isAdmin()) {
             return response()->json(['message' => 'Unauthorized.'], 403);
         }
 

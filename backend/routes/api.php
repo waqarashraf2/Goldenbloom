@@ -23,6 +23,8 @@ Route::middleware('auth:sanctum')->group(function () {
     // Leads Management
     Route::get('/leads', [LeadController::class, 'index']);
     Route::post('/leads', [LeadController::class, 'store']);
+    Route::post('/leads/bulk-delete', [LeadController::class, 'bulkDelete']);
+    Route::post('/leads/clean-demo-data', [LeadController::class, 'cleanDemoData']);
     Route::get('/leads/{lead}', [LeadController::class, 'show']);
     Route::put('/leads/{lead}', [LeadController::class, 'update']);
     Route::delete('/leads/{lead}', [LeadController::class, 'destroy']);

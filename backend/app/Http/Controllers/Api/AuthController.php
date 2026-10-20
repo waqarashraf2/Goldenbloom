@@ -41,8 +41,8 @@ class AuthController extends Controller
                 'email' => $user->email,
                 'role' => $user->role,
                 'phone' => $user->phone,
-                'allowed_tabs' => $user->allowed_tabs ?? ($user->role === 'admin' 
-                    ? ['dashboard', 'leads', 'followups', 'telecallers', 'import', 'settings', 'reports']
+                'allowed_tabs' => $user->allowed_tabs ?? ($user->isAdmin() 
+                    ? ['dashboard', 'leads', 'followups', 'telecallers', 'import', 'settings', 'reports', 'activities', 'integrations']
                     : ['leads', 'followups', 'call_history']),
             ],
         ]);
@@ -58,8 +58,8 @@ class AuthController extends Controller
                 'email' => $user->email,
                 'role' => $user->role,
                 'phone' => $user->phone,
-                'allowed_tabs' => $user->allowed_tabs ?? ($user->role === 'admin' 
-                    ? ['dashboard', 'leads', 'followups', 'telecallers', 'import', 'settings', 'reports']
+                'allowed_tabs' => $user->allowed_tabs ?? ($user->isAdmin() 
+                    ? ['dashboard', 'leads', 'followups', 'telecallers', 'import', 'settings', 'reports', 'activities', 'integrations']
                     : ['leads', 'followups', 'call_history']),
             ],
         ]);

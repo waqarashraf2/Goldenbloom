@@ -5,7 +5,7 @@ import { Lead, User } from '@/lib/api';
 import { 
   X, Phone, MessageSquare, Calendar, Clock, Globe, Shield, 
   MapPin, Home, Layers, CheckCircle2, AlertCircle, PhoneCall,
-  User as UserIcon, Tag, Sparkles, ExternalLink, History, FileText
+  User as UserIcon, Tag, Sparkles, ExternalLink, History, FileText, Trash2
 } from 'lucide-react';
 
 interface LeadDetailsModalProps {
@@ -13,8 +13,10 @@ interface LeadDetailsModalProps {
   onClose: () => void;
   onOpenLogCall: (lead: Lead) => void;
   isAdmin?: boolean;
+  isSuperAdmin?: boolean;
   telecallers?: User[];
   onAssignLead?: (leadId: number, userId: string) => void;
+  onDeleteLead?: (leadId: number) => void;
 }
 
 export default function LeadDetailsModal({
@@ -22,8 +24,10 @@ export default function LeadDetailsModal({
   onClose,
   onOpenLogCall,
   isAdmin,
+  isSuperAdmin,
   telecallers = [],
   onAssignLead,
+  onDeleteLead,
 }: LeadDetailsModalProps) {
   const submissions = lead.submissions || [];
   const submissionsCount = lead.submissions_count || submissions.length || 1;
@@ -351,12 +355,29 @@ export default function LeadDetailsModal({
         </div>
 
         {/* Modal Footer */}
-        <div className="p-3 bg-slate-50 border-t border-slate-200 flex items-center justify-between">
-          <div className="text-[11px] text-slate-400">
-            Lead ID #{lead.id} {isAdmin && lead.source ? <>&bull; Received via {lead.source}</> : null}
+        <div className="p-3 bg-slate-50 border-t border-slate-200 flex flex-wrap items-center justify-between gap-2">
+          <div className="flex items-center gap-3">
+            <span className="text-[11px] text-slate-400">
+              Lead ID #{lead.id} {isAdmin && lead.source ? <>&bull; Received via {lead.source}</> : null}
+            </span>
+
+            {isSuperAdmin && onDeleteLead && (
+              <button
+                type="button"
+                onClick={() => {
+                  if (confirm(`Are you sure you want to permanently delete lead "${lead.name}"? This action cannot be undone.`)) {
+                    onDeleteLead(lead.id);
+                  }
+                }}
+                className="px-2.5 py-1 text-rose-600 hover:text-white bg-rose-50 hover:bg-rose-600 border border-rose-200 rounded-lg text-xs font-semibold flex items-center gap-1 transition cursor-pointer"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                <span>Delete Lead</span>
+              </button>
+            )}
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 ml-auto">
             <button
               type="button"
               onClick={onClose}

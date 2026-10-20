@@ -155,9 +155,13 @@ export default function TelecallersView({ onUsersUpdated }: { onUsersUpdated: ()
                 <div>
                   <h3 className="font-bold text-slate-900 text-xs">{user.name}</h3>
                   <span className={`px-1.5 py-0.2 rounded-full text-[9px] font-bold uppercase tracking-wider ${
-                    user.role === 'admin' ? 'bg-purple-100 text-purple-800' : 'bg-amber-100 text-amber-900'
+                    user.role === 'super_admin' 
+                      ? 'bg-rose-100 text-rose-800 border border-rose-200' 
+                      : user.role === 'admin' 
+                      ? 'bg-purple-100 text-purple-800' 
+                      : 'bg-amber-100 text-amber-900'
                   }`}>
-                    {user.role}
+                    {user.role === 'super_admin' ? 'Super Admin' : user.role}
                   </span>
                 </div>
               </div>

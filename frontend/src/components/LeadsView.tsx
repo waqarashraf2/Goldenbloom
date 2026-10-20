@@ -5,7 +5,7 @@ import { Lead, User, apiRequest, API_BASE_URL } from '@/lib/api';
 import { 
   Search, Filter, Plus, PhoneCall, Phone, MessageSquare, Download, 
   RotateCcw, CheckCircle2, Clock, Calendar, AlertCircle, ArrowUpDown, 
-  UserCheck, Send, Sparkles, ExternalLink, Eye, Info
+  UserCheck, Send, Sparkles, ExternalLink, Eye, Info, Trash2
 } from 'lucide-react';
 import LeadDetailsModal from '@/components/LeadDetailsModal';
 
@@ -61,7 +61,8 @@ export default function LeadsView({ currentUser, telecallers, onOpenLogCall, ini
   const [selectedLeadIds, setSelectedLeadIds] = useState<number[]>([]);
   const [bulkAssignTo, setBulkAssignTo] = useState('');
 
-  const isAdmin = currentUser?.role === 'admin';
+  const isAdmin = currentUser?.role === 'admin' || currentUser?.role === 'super_admin';
+  const isSuperAdmin = currentUser?.role === 'super_admin';
 
   // 1. User-initiated search / filter / page changes -> show loading state
   useEffect(() => {
@@ -241,6 +242,67 @@ export default function LeadsView({ currentUser, telecallers, onOpenLogCall, ini
     }
   };
 
+  const handleDeleteLead = async (leadId: number, leadName?: string) => {
+    if (!confirm(`Are you sure you want to permanently delete lead #${leadId}${leadName ? ` ("${leadName}")` : ''}? This action cannot be undone.`)) {
+      return;
+    }
+
+    try {
+      await apiRequest(`/leads/${leadId}`, { method: 'DELETE' });
+      setLeads(prev => prev.filter(l => l.id !== leadId));
+      setSelectedLeadIds(prev => prev.filter(id => id !== leadId));
+      setTotalLeadsCount(prev => Math.max(0, prev - 1));
+      if (selectedDetailLead?.id === leadId) {
+        setSelectedDetailLead(null);
+      }
+      fetchLeads(true);
+    } catch (err: any) {
+      alert(err.message || 'Failed to delete lead');
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    if (selectedLeadIds.length === 0) return;
+    if (!confirm(`Are you sure you want to permanently delete ${selectedLeadIds.length} selected leads? This action cannot be undone.`)) {
+      return;
+    }
+
+    try {
+      const res = await apiRequest('/leads/bulk-delete', {
+        method: 'POST',
+        body: JSON.stringify({ lead_ids: selectedLeadIds }),
+      });
+      alert(res.message || 'Leads deleted successfully.');
+      const deletedSet = new Set(selectedLeadIds);
+      setLeads(prev => prev.filter(l => !deletedSet.has(l.id)));
+      setSelectedLeadIds([]);
+      fetchLeads(false);
+    } catch (err: any) {
+      alert(err.message || 'Failed to delete selected leads');
+    }
+  };
+
+  const handleCleanDemoData = async () => {
+    const confirmText = prompt(
+      '⚠️ WARNING: This will permanently wipe all test leads and call logs from the database!\n\nType "CLEAN" to confirm:'
+    );
+    if (confirmText !== 'CLEAN') {
+      if (confirmText !== null) alert('Action cancelled: Confirmation word did not match.');
+      return;
+    }
+
+    try {
+      const res = await apiRequest('/leads/clean-demo-data', { method: 'POST' });
+      alert(res.message || 'Demo data cleaned successfully.');
+      setLeads([]);
+      setSelectedLeadIds([]);
+      setTotalLeadsCount(0);
+      fetchLeads(false);
+    } catch (err: any) {
+      alert(err.message || 'Failed to clean demo data');
+    }
+  };
+
   const handleExportCsv = () => {
     const token = typeof window !== 'undefined' ? localStorage.getItem('crm_token') : '';
     const params = new URLSearchParams();
@@ -325,6 +387,17 @@ export default function LeadsView({ currentUser, telecallers, onOpenLogCall, ini
                 <Download className="w-3.5 h-3.5" />
                 <span>Export CSV</span>
               </button>
+
+              {isSuperAdmin && (
+                <button
+                  onClick={handleCleanDemoData}
+                  title="Wipe demo/test data (Super Admin Only)"
+                  className="px-3 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-300 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition shadow-2xs cursor-pointer"
+                >
+                  <Trash2 className="w-3.5 h-3.5 text-rose-600" />
+                  <span>Clean Demo Data</span>
+                </button>
+              )}
             </>
           )}
 
@@ -517,7 +590,7 @@ export default function LeadsView({ currentUser, telecallers, onOpenLogCall, ini
 
         {/* Bulk Action Bar (When Leads selected by Admin) */}
         {isAdmin && selectedLeadIds.length > 0 && (
-          <div className="flex items-center gap-2.5 p-2 bg-amber-50 rounded-lg border border-amber-200 text-xs">
+          <div className="flex flex-wrap items-center gap-2.5 p-2 bg-amber-50 rounded-lg border border-amber-200 text-xs">
             <span className="font-bold text-amber-900 text-[11px]">{selectedLeadIds.length} leads selected:</span>
             <select
               value={bulkAssignTo}
@@ -531,10 +604,21 @@ export default function LeadsView({ currentUser, telecallers, onOpenLogCall, ini
             </select>
             <button
               onClick={handleBulkAssign}
-              className="px-2.5 py-1 bg-amber-800 text-white rounded font-bold text-xs hover:bg-amber-900"
+              className="px-2.5 py-1 bg-amber-800 text-white rounded font-bold text-xs hover:bg-amber-900 cursor-pointer"
             >
               Apply
             </button>
+
+            {isSuperAdmin && (
+              <button
+                type="button"
+                onClick={handleBulkDelete}
+                className="px-2.5 py-1 bg-rose-600 hover:bg-rose-700 text-white rounded font-bold text-xs flex items-center gap-1 transition shadow-2xs ml-auto cursor-pointer"
+              >
+                <Trash2 className="w-3 h-3" />
+                <span>Delete Selected ({selectedLeadIds.length})</span>
+              </button>
+            )}
           </div>
         )}
       </div>
@@ -756,6 +840,17 @@ export default function LeadsView({ currentUser, telecallers, onOpenLogCall, ini
                             <PhoneCall className="w-3 h-3" />
                             <span>Log Call</span>
                           </button>
+
+                          {isSuperAdmin && (
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteLead(lead.id, lead.name)}
+                              title="Permanently Delete Lead (Super Admin Only)"
+                              className="p-1.5 bg-slate-50 hover:bg-rose-50 text-slate-400 hover:text-rose-600 border border-slate-200 hover:border-rose-300 rounded-lg text-xs font-semibold shadow-2xs transition flex items-center cursor-pointer"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          )}
                         </div>
                       </td>
 
@@ -915,8 +1010,10 @@ export default function LeadsView({ currentUser, telecallers, onOpenLogCall, ini
           onClose={() => setSelectedDetailLead(null)}
           onOpenLogCall={onOpenLogCall}
           isAdmin={isAdmin}
+          isSuperAdmin={isSuperAdmin}
           telecallers={telecallers}
           onAssignLead={handleInlineAssign}
+          onDeleteLead={(id) => handleDeleteLead(id)}
         />
       )}
 

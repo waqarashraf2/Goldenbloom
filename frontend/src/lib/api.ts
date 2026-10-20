@@ -4,7 +4,7 @@ export interface User {
   id: number;
   name: string;
   email: string;
-  role: 'admin' | 'telecaller';
+  role: 'super_admin' | 'admin' | 'telecaller';
   phone?: string;
   is_active?: boolean;
   allowed_tabs?: string[];

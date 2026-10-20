@@ -186,7 +186,7 @@ export default function CrmApp() {
       const urlTab = searchParams.get('tab');
       const targetTab = (urlTab && VALID_TABS.includes(urlTab)) 
         ? urlTab 
-        : (data.user.role === 'admin' ? 'dashboard' : 'leads');
+        : ((data.user.role === 'admin' || data.user.role === 'super_admin') ? 'dashboard' : 'leads');
       switchTab(targetTab);
     } catch (err: any) {
       setLoginError(err.message || 'Invalid email or password');
@@ -201,10 +201,6 @@ export default function CrmApp() {
     setToken(null);
     setCurrentUser(null);
     setStats(null);
-  };
-
-  const handleQuickSwitch = (email: string) => {
-    handleLogin(email, 'password123');
   };
 
   const handleCallLogged = (updatedLead: Lead) => {
@@ -225,7 +221,7 @@ export default function CrmApp() {
     },
     { 
       id: 'leads', 
-      label: currentUser?.role === 'admin' ? 'All Leads' : 'My Leads', 
+      label: (currentUser?.role === 'admin' || currentUser?.role === 'super_admin') ? 'All Leads' : 'My Leads', 
       icon: Users, 
       adminOnly: false 
     },
@@ -264,7 +260,7 @@ export default function CrmApp() {
 
   const visibleNavItems = navigationItems.filter(item => {
     if (!currentUser) return false;
-    if (currentUser.role === 'admin') return true;
+    if (currentUser.role === 'admin' || currentUser.role === 'super_admin') return true;
     if (item.adminOnly) return false;
     if (currentUser.allowed_tabs && currentUser.allowed_tabs.length > 0) {
       if (item.id === 'followups' && !currentUser.allowed_tabs.includes('followups')) return false;
@@ -299,40 +295,6 @@ export default function CrmApp() {
             </p>
           </div>
 
-          {/* Quick Demo Switcher */}
-          <div className="p-3 bg-amber-50/70 rounded-xl border border-amber-200/80 space-y-2 text-xs">
-            <span className="font-bold text-amber-900 flex items-center gap-1.5">
-              <Key className="w-3.5 h-3.5 text-amber-700" />
-              1-Click Demo Accounts:
-            </span>
-            <div className="grid grid-cols-1 gap-1.5">
-              <button
-                type="button"
-                onClick={() => handleQuickSwitch('admin@goldenbloom.ae')}
-                className="w-full p-2 bg-white hover:bg-amber-100/60 border border-amber-300 rounded-lg font-medium text-slate-800 flex items-center justify-between transition text-left"
-              >
-                <span>👑 <strong>Admin</strong> (Full Access)</span>
-                <span className="text-[11px] text-amber-700 font-semibold">Sign In &rarr;</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => handleQuickSwitch('sarah@goldenbloom.ae')}
-                className="w-full p-2 bg-white hover:bg-amber-100/60 border border-amber-300 rounded-lg font-medium text-slate-800 flex items-center justify-between transition text-left"
-              >
-                <span>📞 <strong>Sarah Khan</strong> (Telecaller)</span>
-                <span className="text-[11px] text-amber-700 font-semibold">Sign In &rarr;</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => handleQuickSwitch('ali@goldenbloom.ae')}
-                className="w-full p-2 bg-white hover:bg-amber-100/60 border border-amber-300 rounded-lg font-medium text-slate-800 flex items-center justify-between transition text-left"
-              >
-                <span>📞 <strong>Ali Raza</strong> (Telecaller)</span>
-                <span className="text-[11px] text-amber-700 font-semibold">Sign In &rarr;</span>
-              </button>
-            </div>
-          </div>
-
           {loginError && (
             <div className="p-3 bg-rose-50 border border-rose-200 text-rose-700 text-xs rounded-xl flex items-center gap-2">
               <span>{loginError}</span>
@@ -348,7 +310,7 @@ export default function CrmApp() {
                 required
                 value={loginEmail}
                 onChange={(e) => setLoginEmail(e.target.value)}
-                placeholder="admin@goldenbloom.ae"
+                placeholder="superadmin@goldenbloom.ae"
                 className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs text-slate-900 focus:ring-2 focus:ring-amber-500 focus:outline-none"
               />
             </div>
@@ -481,58 +443,43 @@ export default function CrmApp() {
           })}
         </div>
 
-        {/* Sidebar Footer: User Card & Role Switcher */}
-        <div className="p-2.5 border-t border-slate-100 bg-slate-50/50 space-y-2">
+        {/* Sidebar Footer: User Card */}
+        <div className="p-2.5 border-t border-slate-100 bg-slate-50/50">
           
-          {/* Quick Perspective Switcher */}
-          <div className="p-1.5 bg-white rounded-lg border border-slate-200 text-[10px]">
-            <span className="font-semibold text-slate-500 block mb-1">Switch View:</span>
-            <div className="grid grid-cols-3 gap-1">
-              <button
-                onClick={() => handleQuickSwitch('admin@goldenbloom.ae')}
-                className={`py-0.5 text-center rounded font-bold text-[10px] transition ${
-                  currentUser.role === 'admin' ? 'bg-amber-700 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                }`}
-              >
-                Admin
-              </button>
-              <button
-                onClick={() => handleQuickSwitch('sarah@goldenbloom.ae')}
-                className={`py-0.5 text-center rounded font-bold text-[10px] transition ${
-                  currentUser.email === 'sarah@goldenbloom.ae' ? 'bg-amber-700 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                }`}
-              >
-                Sarah
-              </button>
-              <button
-                onClick={() => handleQuickSwitch('ali@goldenbloom.ae')}
-                className={`py-0.5 text-center rounded font-bold text-[10px] transition ${
-                  currentUser.email === 'ali@goldenbloom.ae' ? 'bg-amber-700 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                }`}
-              >
-                Ali
-              </button>
-            </div>
-          </div>
-
           {/* User Profile Card */}
-          <div className="flex items-center justify-between p-1.5 rounded-lg bg-white border border-slate-200">
+          <div className="flex items-center justify-between p-2 rounded-lg bg-white border border-slate-200 shadow-2xs">
             <div className="flex items-center gap-2 min-w-0">
-              <div className="w-6 h-6 rounded-full bg-amber-100 text-amber-800 font-bold flex items-center justify-center text-[10px] flex-shrink-0">
+              <div className={`w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold flex-shrink-0 ${
+                currentUser.role === 'super_admin'
+                  ? 'bg-rose-100 text-rose-800'
+                  : currentUser.role === 'admin'
+                  ? 'bg-purple-100 text-purple-800'
+                  : 'bg-amber-100 text-amber-800'
+              }`}>
                 {currentUser.name.charAt(0)}
               </div>
               <div className="min-w-0">
-                <div className="font-bold text-slate-800 text-[11px] truncate">{currentUser.name}</div>
-                <div className="text-[9px] text-slate-400 uppercase font-semibold">{currentUser.role}</div>
+                <div className="font-bold text-slate-800 text-xs truncate">{currentUser.name}</div>
+                <div className="text-[10px] text-slate-400 uppercase font-semibold">
+                  <span className={`px-1 py-0.2 rounded text-[9px] font-bold ${
+                    currentUser.role === 'super_admin'
+                      ? 'bg-rose-50 text-rose-700 border border-rose-200'
+                      : currentUser.role === 'admin'
+                      ? 'bg-purple-50 text-purple-700 border border-purple-200'
+                      : 'bg-slate-100 text-slate-600'
+                  }`}>
+                    {currentUser.role === 'super_admin' ? 'Super Admin' : currentUser.role}
+                  </span>
+                </div>
               </div>
             </div>
 
             <button
               onClick={handleLogout}
               title="Sign Out"
-              className="p-1 text-slate-400 hover:text-rose-600 hover:bg-slate-100 rounded transition"
+              className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-slate-100 rounded-lg transition cursor-pointer"
             >
-              <LogOut className="w-3.5 h-3.5" />
+              <LogOut className="w-4 h-4" />
             </button>
           </div>
 
@@ -664,7 +611,7 @@ export default function CrmApp() {
           lead={activeCallModalLead}
           onClose={() => setActiveCallModalLead(null)}
           onSuccess={handleCallLogged}
-          isAdmin={currentUser?.role === 'admin'}
+          isAdmin={currentUser?.role === 'admin' || currentUser?.role === 'super_admin'}
         />
       )}
 

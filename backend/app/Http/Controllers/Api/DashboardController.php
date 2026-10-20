@@ -121,7 +121,7 @@ class DashboardController extends Controller
         $recentActivities = CallLog::with(['user', 'lead'])->latest()->take(10)->get();
 
         return response()->json([
-            'role' => 'admin',
+            'role' => $user->role,
             'stats' => [
                 'total_leads' => $totalLeads,
                 'website_leads' => $websiteLeads,

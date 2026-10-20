@@ -9,6 +9,8 @@ export default function CallHistoryView({ currentUser, refreshTrigger }: { curre
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState('');
 
+  const isAdmin = currentUser?.role === 'admin' || currentUser?.role === 'super_admin';
+
   useEffect(() => {
     fetchLogs(false);
   }, [statusFilter]);
@@ -41,7 +43,7 @@ export default function CallHistoryView({ currentUser, refreshTrigger }: { curre
         <div>
           <h2 className="text-sm sm:text-base font-bold text-slate-900 flex items-center gap-2">
             <PhoneCall className="w-4 h-4 text-amber-800" />
-            {currentUser?.role === 'admin' ? 'Company Call Activities & Telecaller Audit' : 'My Call History Logs'}
+            {isAdmin ? 'Company Call Activities & Telecaller Audit' : 'My Call History Logs'}
           </h2>
           <p className="text-[11px] text-slate-500">
             Complete timeline of client phone calls, conversation feedback, and follow-up schedules.
@@ -80,7 +82,7 @@ export default function CallHistoryView({ currentUser, refreshTrigger }: { curre
               <thead className="bg-slate-50 text-slate-500 font-bold uppercase tracking-wider border-b border-slate-100 text-[10px]">
                 <tr>
                   <th className="py-2.5 px-3">Date &amp; Time</th>
-                  {currentUser?.role === 'admin' && <th className="py-2.5 px-3">Telecaller</th>}
+                  {isAdmin && <th className="py-2.5 px-3">Telecaller</th>}
                   <th className="py-2.5 px-3">Client / Lead</th>
                   <th className="py-2.5 px-3">Call Status</th>
                   <th className="py-2.5 px-3">Client Feedback / Notes</th>
@@ -99,7 +101,7 @@ export default function CallHistoryView({ currentUser, refreshTrigger }: { curre
                       </div>
                     </td>
 
-                    {currentUser?.role === 'admin' && (
+                    {isAdmin && (
                       <td className="py-2 px-3">
                         <span className="font-bold text-slate-900 bg-slate-100 px-1.5 py-0.2 rounded text-[10px]">
                           {log.user?.name || 'Agent'}
