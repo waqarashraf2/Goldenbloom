@@ -61,11 +61,14 @@ class UserController extends Controller
             return response()->json(['message' => 'Unauthorized.'], 403);
         }
 
+        $allowedRoles = $request->user()->role === 'super_admin' ? 'super_admin,admin,telecaller' : 'telecaller';
+
         $validated = $request->validate([
             'name' => 'sometimes|required|string|max:255',
             'email' => 'sometimes|required|email|unique:users,email,' . $user->id,
             'password' => 'nullable|string|min:6',
             'phone' => 'nullable|string|max:50',
+            'role' => 'nullable|string|in:' . $allowedRoles,
             'is_active' => 'nullable|boolean',
             'allowed_tabs' => 'nullable|array',
         ]);
@@ -102,10 +105,34 @@ class UserController extends Controller
             return response()->json(['message' => 'Only Super Admin can delete admin accounts.'], 403);
         }
 
-        // Reassign leads to null
-        $user->leads()->update(['assigned_to' => null]);
+        $reassignTo = $request->input('reassign_to');
+        $leadCount = $user->leads()->count();
+
+        if (!empty($reassignTo) && $reassignTo !== 'unassigned') {
+            $targetUser = User::find($reassignTo);
+            if (!$targetUser) {
+                return response()->json(['message' => 'The selected telecaller to reassign leads does not exist.'], 422);
+            }
+            $user->leads()->update([
+                'assigned_to' => $targetUser->id,
+                'assigned_at' => now(),
+            ]);
+            $actionMsg = "{$leadCount} lead(s) successfully reassigned to {$targetUser->name}.";
+        } else {
+            // Move leads to Unassigned Pool (Triage) for Admin & Super Admin review
+            $user->leads()->update([
+                'assigned_to' => null,
+                'assigned_at' => null,
+            ]);
+            $actionMsg = "{$leadCount} lead(s) moved to Unassigned Triage pool.";
+        }
+
+        $userName = $user->name;
         $user->delete();
 
-        return response()->json(['message' => 'User deleted successfully.']);
+        return response()->json([
+            'message' => "Team member \"{$userName}\" deleted successfully. {$actionMsg}",
+            'reassigned_count' => $leadCount,
+        ]);
     }
 }

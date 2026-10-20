@@ -189,7 +189,18 @@ class LeadController extends Controller
             'assigned_to' => 'nullable|exists:users,id',
         ]);
 
-        $cleanPhone = preg_replace('/[^\+0-9]/', '', $validated['phone']);
+        $rawPhone = trim((string) $validated['phone']);
+        if (preg_match('/^[0-9]+(\.[0-9]+)?[eE][\+\-]?[0-9]+$/i', $rawPhone)) {
+            $rawPhone = sprintf('%.0f', (float) $rawPhone);
+        }
+        $rawPhone = preg_replace('/^p:/i', '', $rawPhone);
+        $cleanPhone = preg_replace('/[^\+0-9]/', '', $rawPhone);
+        if (str_starts_with($cleanPhone, '971') && !str_starts_with($cleanPhone, '+971')) {
+            $cleanPhone = '+' . $cleanPhone;
+        } elseif (str_starts_with($cleanPhone, '05') && strlen($cleanPhone) === 10) {
+            $cleanPhone = '+971' . substr($cleanPhone, 1);
+        }
+
         $existing = Lead::where('phone', $cleanPhone)->first();
         $timestamp = date('d M Y, h:i A');
 
@@ -436,10 +447,30 @@ class LeadController extends Controller
             if (empty(array_filter($row))) continue;
 
             $name = $nameIdx !== -1 && isset($row[$nameIdx]) ? trim($row[$nameIdx]) : '';
-            $phone = $phoneIdx !== -1 && isset($row[$phoneIdx]) ? preg_replace('/[^\+0-9]/', '', trim($row[$phoneIdx])) : '';
+            $rawPhone = $phoneIdx !== -1 && isset($row[$phoneIdx]) ? trim((string) $row[$phoneIdx]) : '';
             $email = $emailIdx !== -1 && isset($row[$emailIdx]) ? trim($row[$emailIdx]) : null;
             $service = $serviceIdx !== -1 && isset($row[$serviceIdx]) ? trim($row[$serviceIdx]) : null;
             $notes = $notesIdx !== -1 && isset($row[$notesIdx]) ? trim($row[$notesIdx]) : null;
+
+            // Normalize Phone Number (Handle Excel/Google Sheets Scientific Notation e.g. 9.72E+11)
+            $phone = '';
+            if (!empty($rawPhone)) {
+                if (preg_match('/^[0-9]+(\.[0-9]+)?[eE][\+\-]?[0-9]+$/i', $rawPhone)) {
+                    $floatVal = (float) $rawPhone;
+                    $rawPhone = sprintf('%.0f', $floatVal);
+                } elseif (is_numeric($rawPhone) && str_contains($rawPhone, '.')) {
+                    $rawPhone = sprintf('%.0f', (float) $rawPhone);
+                }
+
+                $rawPhone = preg_replace('/^p:/i', '', $rawPhone);
+                $phone = preg_replace('/[^\+0-9]/', '', $rawPhone);
+
+                if (str_starts_with($phone, '971') && !str_starts_with($phone, '+971')) {
+                    $phone = '+' . $phone;
+                } elseif (str_starts_with($phone, '05') && strlen($phone) === 10) {
+                    $phone = '+971' . substr($phone, 1);
+                }
+            }
 
             if (empty($phone) && empty($email)) {
                 continue;
@@ -459,16 +490,16 @@ class LeadController extends Controller
                 }
             }
 
-            // Auto-generate rich note if note is blank
-            if (empty($notes)) {
-                $summaryParts = [];
-                if ($locationIdx !== -1 && !empty($row[$locationIdx])) $summaryParts[] = "Location: " . trim($row[$locationIdx]);
-                if ($propertyIdx !== -1 && !empty($row[$propertyIdx])) $summaryParts[] = "Property: " . ucfirst(str_replace('_', ' ', trim($row[$propertyIdx])));
-                if ($timelineIdx !== -1 && !empty($row[$timelineIdx])) $summaryParts[] = "Timeline: " . ucfirst(str_replace('_', ' ', trim($row[$timelineIdx])));
-                if ($platformIdx !== -1 && !empty($row[$platformIdx])) $summaryParts[] = "Platform: " . strtoupper(trim($row[$platformIdx]));
-                if (!empty($summaryParts)) {
-                    $notes = implode(" | ", $summaryParts);
-                }
+            // Enrich notes with location, property, timeline if available
+            $summaryParts = [];
+            if ($locationIdx !== -1 && !empty($row[$locationIdx])) $summaryParts[] = "Location: " . trim($row[$locationIdx]);
+            if ($propertyIdx !== -1 && !empty($row[$propertyIdx])) $summaryParts[] = "Property: " . ucfirst(str_replace('_', ' ', trim($row[$propertyIdx])));
+            if ($timelineIdx !== -1 && !empty($row[$timelineIdx])) $summaryParts[] = "Timeline: " . ucfirst(str_replace('_', ' ', trim($row[$timelineIdx])));
+            if ($platformIdx !== -1 && !empty($row[$platformIdx])) $summaryParts[] = "Platform: " . strtoupper(trim($row[$platformIdx]));
+
+            if (!empty($summaryParts)) {
+                $metaSummary = implode(" | ", $summaryParts);
+                $notes = !empty($notes) ? ($notes . "\n(" . $metaSummary . ")") : $metaSummary;
             }
 
             // Auto-detect source from platform column

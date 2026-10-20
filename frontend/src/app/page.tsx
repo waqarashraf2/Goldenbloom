@@ -586,7 +586,7 @@ export default function CrmApp() {
           )}
 
           {activeTab === 'telecallers' && (
-            <TelecallersView onUsersUpdated={loadTelecallers} />
+            <TelecallersView currentUser={currentUser} onUsersUpdated={loadTelecallers} />
           )}
 
           {activeTab === 'import' && (

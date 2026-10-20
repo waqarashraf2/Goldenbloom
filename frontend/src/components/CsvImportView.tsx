@@ -54,9 +54,9 @@ export default function CsvImportView({ onImportComplete }: { onImportComplete: 
 
   const downloadSampleCsv = () => {
     const csvContent = "data:text/csv;charset=utf-8," + 
-      "Full Name,Phone Number,Email Address,Service Requested,Message\n" +
-      "Noura Al Kaabi,+971502233445,noura@example.com,Luxury Birthday Bouquet,Needs pastel peonies and roses delivery to Dubai Marina\n" +
-      "Khalid Mansoor,+971556677889,khalid@example.com,Corporate Floral Subscription,Weekly flower vase setup for reception";
+      "Full Name,Phone Number,Email Address,Service Required,Property Type,Project Timeline,Villa Location,Comment\n" +
+      "Noura Al Kaabi,+971501234567,noura@example.ae,Landscaping Design,Villa,Immediate,Dubai Al Barsha,Interested in backyard garden and pool\n" +
+      "Khalid Mansoor,+971529876543,khalid@example.com,Corporate Floral Subscription,Commercial Villa,Within 1 Month,Downtown Dubai,Weekly flower arrangements";
     const encodedUri = encodeURI(csvContent);
     const link = document.createElement("a");
     link.setAttribute("href", encodedUri);
@@ -128,8 +128,8 @@ export default function CsvImportView({ onImportComplete }: { onImportComplete: 
             <div className="text-xs font-bold text-slate-800">
               {file ? file.name : 'Click or Drag & Drop your CSV file here'}
             </div>
-            <p className="text-[11px] text-slate-400">
-              Supports standard Meta / Google Sheet CSV files (Name, Phone, Email, Service, etc.)
+            <p className="text-[11px] text-slate-500">
+              Supports Google Sheets &amp; Meta CSV files. Scientific notation (e.g. <code>9.72E+11</code>) is automatically detected and converted to full phone numbers.
             </p>
           </div>
         </div>
