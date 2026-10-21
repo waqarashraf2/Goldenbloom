@@ -64,6 +64,14 @@ export default function LeadsView({ currentUser, telecallers, onOpenLogCall, ini
   const isAdmin = currentUser?.role === 'admin' || currentUser?.role === 'super_admin';
   const isSuperAdmin = currentUser?.role === 'super_admin';
 
+  const isMarketingOrSourceKey = (key: string) => {
+    const k = key.toLowerCase().replace(/[\s_\-]/g, '');
+    return [
+      'source', 'platform', 'formname', 'formid', 'campaign', 'campaignname',
+      'adname', 'adset', 'adsetname', 'adid', 'fbleadid', 'pageid', 'pagename', 'leadid'
+    ].includes(k);
+  };
+
   // 1. User-initiated search / filter / page changes -> show loading state
   useEffect(() => {
     fetchLeads(false);
@@ -729,34 +737,39 @@ export default function LeadsView({ currentUser, telecallers, onOpenLogCall, ini
                         <div className="font-medium text-slate-800 max-w-[200px] truncate text-xs" title={lead.service_requested || 'General'}>
                           {lead.service_requested || 'General Floral'}
                         </div>
-                        {lead.campaign_name && (
+                        {isAdmin && lead.campaign_name && (
                           <div className="text-[10px] text-slate-400 truncate max-w-[180px]">
                             Campaign: {lead.campaign_name}
                           </div>
                         )}
                         {lead.lead_notes && (
                           <div className="text-[10px] text-slate-500 italic truncate max-w-[200px]">
-                            "{lead.lead_notes}"
+                            "{isAdmin ? lead.lead_notes : lead.lead_notes.replace(/\s*via\s+[a-zA-Z0-9_\-]+/gi, '').replace(/\s*\|\s*Platform:\s*[^\|]+/gi, '').replace(/\s*\|\s*Form:\s*[^\|]+/gi, '').trim()}"
                           </div>
                         )}
-                        {lead.custom_fields && Object.keys(lead.custom_fields).length > 0 && (
-                          <div className="flex flex-wrap gap-1 mt-1 max-w-[220px]">
-                            {Object.entries(lead.custom_fields).slice(0, 2).map(([k, v]) => (
-                              <span 
-                                key={k} 
-                                className="px-1 py-0.2 rounded bg-purple-50 text-purple-800 border border-purple-200 text-[9px] font-medium truncate max-w-[140px]"
-                                title={`${k}: ${String(v)}`}
-                              >
-                                <strong>{k}:</strong> {String(v)}
-                              </span>
-                            ))}
-                            {Object.keys(lead.custom_fields).length > 2 && (
-                              <span className="text-[9px] text-purple-700 font-bold bg-purple-50 px-1 rounded">
-                                +{Object.keys(lead.custom_fields).length - 2}
-                              </span>
-                            )}
-                          </div>
-                        )}
+                        {lead.custom_fields && Object.keys(lead.custom_fields).length > 0 && (() => {
+                          const visibleEntries = Object.entries(lead.custom_fields)
+                            .filter(([k]) => k !== 'submissions' && k !== 'submissions_count' && (isAdmin || !isMarketingOrSourceKey(k)));
+                          if (visibleEntries.length === 0) return null;
+                          return (
+                            <div className="flex flex-wrap gap-1 mt-1 max-w-[220px]">
+                              {visibleEntries.slice(0, 2).map(([k, v]) => (
+                                <span 
+                                  key={k} 
+                                  className="px-1 py-0.2 rounded bg-purple-50 text-purple-800 border border-purple-200 text-[9px] font-medium truncate max-w-[140px]"
+                                  title={`${k}: ${String(v)}`}
+                                >
+                                  <strong>{k}:</strong> {String(v)}
+                                </span>
+                              ))}
+                              {visibleEntries.length > 2 && (
+                                <span className="text-[9px] text-purple-700 font-bold bg-purple-50 px-1 rounded">
+                                  +{visibleEntries.length - 2}
+                                </span>
+                              )}
+                            </div>
+                          );
+                        })()}
                       </td>
 
                       {/* Source (Admin Only) */}

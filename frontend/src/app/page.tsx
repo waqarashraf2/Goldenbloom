@@ -64,7 +64,7 @@ export default function CrmApp() {
         if (urlTab === 'followups') {
           setLeadsFilter({ today_followups: true });
         }
-      } else if (user && user.role !== 'admin') {
+      } else if (user && user.role === 'telecaller') {
         setActiveTab('leads');
       }
     }
@@ -91,7 +91,7 @@ export default function CrmApp() {
   useEffect(() => {
     if (currentUser && token) {
       loadStats();
-      if (currentUser.role === 'admin') {
+      if (currentUser.role === 'admin' || currentUser.role === 'super_admin') {
         loadTelecallers();
       }
     }
@@ -153,7 +153,7 @@ export default function CrmApp() {
     try {
       await Promise.all([
         loadStats(),
-        currentUser?.role === 'admin' ? loadTelecallers() : Promise.resolve(),
+        (currentUser?.role === 'admin' || currentUser?.role === 'super_admin') ? loadTelecallers() : Promise.resolve(),
       ]);
       setRefreshTrigger(prev => prev + 1);
       setLastRefreshedAt(new Date());

@@ -82,10 +82,15 @@ class CallLogController extends Controller
             'next_follow_up_date' => $validated['follow_up_date'] ?? null,
         ]);
 
+        $freshLead = $lead->fresh(['assignedUser', 'callLogs.user']);
+        if ($user->role === 'telecaller') {
+            $freshLead->sanitizeForTelecaller();
+        }
+
         return response()->json([
             'message' => 'Call logged successfully.',
             'call_log' => $callLog->load('user'),
-            'lead' => $lead->fresh(['assignedUser', 'callLogs.user']),
+            'lead' => $freshLead,
         ], 201);
     }
 }

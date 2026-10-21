@@ -32,6 +32,14 @@ export default function LeadDetailsModal({
   const submissions = lead.submissions || [];
   const submissionsCount = lead.submissions_count || submissions.length || 1;
 
+  const isMarketingOrSourceKey = (key: string) => {
+    const k = key.toLowerCase().replace(/[\s_\-]/g, '');
+    return [
+      'source', 'platform', 'formname', 'formid', 'campaign', 'campaignname',
+      'adname', 'adset', 'adsetname', 'adid', 'fbleadid', 'pageid', 'pagename', 'leadid'
+    ].includes(k);
+  };
+
   const getSourceBadge = (source: string) => {
     switch (source) {
       case 'website':
@@ -286,7 +294,7 @@ export default function LeadDetailsModal({
                       </span>
                     </div>
 
-                    {sub.campaign && (
+                    {isAdmin && sub.campaign && (
                       <div>
                         <span className="text-slate-400 block font-medium">Campaign:</span>
                         <span className="text-slate-700 truncate block">
@@ -299,7 +307,7 @@ export default function LeadDetailsModal({
                   {/* Notes / Message */}
                   {sub.notes && (
                     <div className="mt-2 p-2 bg-slate-50 rounded-lg border border-slate-200 text-[11px] text-slate-700 italic">
-                      "{sub.notes}"
+                      "{isAdmin ? sub.notes : sub.notes.replace(/\s*via\s+[a-zA-Z0-9_\-]+/gi, '').replace(/\s*\|\s*Platform:\s*[^\|]+/gi, '').replace(/\s*\|\s*Form:\s*[^\|]+/gi, '').trim()}"
                     </div>
                   )}
 
@@ -308,6 +316,7 @@ export default function LeadDetailsModal({
                     <div className="mt-2 pt-2 border-t border-slate-100 flex flex-wrap gap-1.5">
                       {Object.entries(sub.custom_fields).map(([k, v]) => {
                         if (k === 'submissions' || k === 'submissions_count') return null;
+                        if (!isAdmin && isMarketingOrSourceKey(k)) return null;
                         return (
                           <span 
                             key={k} 

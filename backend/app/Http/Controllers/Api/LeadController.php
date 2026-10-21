@@ -125,20 +125,10 @@ class LeadController extends Controller
         $perPage = (int) $request->get('per_page', 15);
         $leads = $query->paginate($perPage);
 
-        // RBAC: Mask source for telecaller (Source is strictly admin-only)
+        // RBAC: Completely strip all marketing source/platform/campaign/form traces for telecallers
         if ($user && $user->role === 'telecaller') {
             $leads->getCollection()->transform(function ($lead) {
-                $lead->makeHidden(['source']);
-                $lead->source = null;
-                $submissions = $lead->submissions;
-                if (!empty($submissions) && is_array($submissions)) {
-                    $cleanedSubmissions = array_map(function ($sub) {
-                        unset($sub['source']);
-                        return $sub;
-                    }, $submissions);
-                    $lead->submissions = $cleanedSubmissions;
-                }
-                return $lead;
+                return $lead->sanitizeForTelecaller();
             });
         }
 
@@ -156,18 +146,9 @@ class LeadController extends Controller
 
         $lead->load(['assignedUser', 'callLogs.user']);
 
-        // RBAC: Mask source for telecaller (Source is strictly admin-only)
+        // RBAC: Completely strip all marketing source/platform/campaign/form traces for telecallers
         if ($user && $user->role === 'telecaller') {
-            $lead->makeHidden(['source']);
-            $lead->source = null;
-            $submissions = $lead->submissions;
-            if (!empty($submissions) && is_array($submissions)) {
-                $cleanedSubmissions = array_map(function ($sub) {
-                    unset($sub['source']);
-                    return $sub;
-                }, $submissions);
-                $lead->submissions = $cleanedSubmissions;
-            }
+            $lead->sanitizeForTelecaller();
         }
 
         return response()->json($lead);

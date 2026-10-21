@@ -89,4 +89,68 @@ class Lead extends Model
     {
         return $this->hasMany(CallLog::class)->orderBy('created_at', 'desc');
     }
+
+    /**
+     * RBAC Sanitizer: Completely strips out all source, platform, form, and ad campaign
+     * metadata so telecallers never see where the lead originated.
+     */
+    public function sanitizeForTelecaller(): self
+    {
+        $this->makeHidden(['source', 'campaign_name', 'ad_name']);
+        $this->source = null;
+        $this->campaign_name = null;
+        $this->ad_name = null;
+
+        $restrictedKeys = [
+            'source', 'Source', 'platform', 'Platform', 
+            'form_name', 'Form Name', 'form_id', 'Form ID', 
+            'campaign', 'Campaign', 'campaign_name', 'Campaign Name',
+            'ad_name', 'Ad Name', 'ad_set', 'adset_name', 'ad_id', 
+            'fb_lead_id', 'page_id', 'page_name', 'lead_id'
+        ];
+
+        // Sanitize submissions history
+        $rawSubmissions = $this->submissions;
+        $cleanSubmissions = [];
+        if (is_array($rawSubmissions)) {
+            foreach ($rawSubmissions as $sub) {
+                unset($sub['source']);
+                unset($sub['campaign']);
+                if (!empty($sub['custom_fields']) && is_array($sub['custom_fields'])) {
+                    foreach ($restrictedKeys as $k) {
+                        unset($sub['custom_fields'][$k]);
+                    }
+                }
+                if (!empty($sub['notes'])) {
+                    $cleanedNote = $sub['notes'];
+                    $cleanedNote = preg_replace('/\s*via\s+[a-zA-Z0-9_\-]+/i', '', $cleanedNote);
+                    $cleanedNote = preg_replace('/\s*\|\s*Platform:\s*[^\|]+/i', '', $cleanedNote);
+                    $cleanedNote = preg_replace('/\s*\|\s*Form:\s*[^\|]+/i', '', $cleanedNote);
+                    $sub['notes'] = trim($cleanedNote, " |");
+                }
+                $cleanSubmissions[] = $sub;
+            }
+        }
+
+        // Sanitize custom_fields
+        $custom = $this->custom_fields ?? [];
+        if (is_array($custom)) {
+            foreach ($restrictedKeys as $k) {
+                unset($custom[$k]);
+            }
+            $custom['submissions'] = $cleanSubmissions;
+            $this->custom_fields = $custom;
+        }
+
+        // Sanitize lead_notes
+        if ($this->lead_notes) {
+            $notes = $this->lead_notes;
+            $notes = preg_replace('/\s*via\s+[a-zA-Z0-9_\-]+/i', '', $notes);
+            $notes = preg_replace('/\s*\|\s*Platform:\s*[^\|]+/i', '', $notes);
+            $notes = preg_replace('/\s*\|\s*Form:\s*[^\|]+/i', '', $notes);
+            $this->lead_notes = trim($notes, " |");
+        }
+
+        return $this;
+    }
 }
