@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\CrmNotification;
 use App\Models\Lead;
 use App\Models\User;
 use Illuminate\Http\Request;
@@ -266,6 +267,27 @@ class LeadController extends Controller
             'custom_fields' => $initialCustom,
         ]);
 
+        // If assigned to another telecaller, notify them
+        if ($assignedTo && $assignedTo !== $user->id) {
+            CrmNotification::notifyUser(
+                $assignedTo,
+                "New Lead Assigned! 👤",
+                "Lead #{$lead->id} ({$lead->name}) has been assigned to you.",
+                $lead->id,
+                ['lead_id' => $lead->id, 'type' => 'lead_assigned', 'client_name' => $lead->name]
+            );
+        }
+
+        // If created by a telecaller, notify Admins
+        if ($user->role === 'telecaller') {
+            CrmNotification::notifyAdmins(
+                "Lead Created by Telecaller 📝",
+                "{$user->name} created lead #{$lead->id} ({$lead->name})",
+                $lead->id,
+                ['lead_id' => $lead->id, 'type' => 'new_lead', 'client_name' => $lead->name]
+            );
+        }
+
         return response()->json([
             'message' => 'Lead created successfully.',
             'lead' => $lead->load('assignedUser'),
@@ -324,6 +346,24 @@ class LeadController extends Controller
             'assigned_at' => $assignedAt,
         ]);
 
+        // Notify telecaller about assigned leads
+        if ($userId) {
+            $count = count($validated['lead_ids']);
+            $firstLead = Lead::find($validated['lead_ids'][0]);
+            $firstLeadName = $firstLead ? $firstLead->name : 'Client';
+            $msg = $count === 1
+                ? "Lead #{$firstLead->id} ({$firstLeadName}) has been assigned to you."
+                : "{$count} leads have been assigned to you for follow-up.";
+
+            CrmNotification::notifyUser(
+                $userId,
+                "New Lead Assigned to You! 👤",
+                $msg,
+                $firstLead?->id,
+                ['lead_id' => $firstLead?->id, 'type' => 'lead_assigned', 'count' => $count]
+            );
+        }
+
         return response()->json([
             'message' => count($validated['lead_ids']) . ' lead(s) successfully assigned.',
         ]);
@@ -351,6 +391,7 @@ class LeadController extends Controller
         $count = $telecallers->count();
         $index = 0;
         $distributedCount = 0;
+        $agentCounts = [];
 
         foreach ($unassignedLeads as $lead) {
             $agent = $telecallers[$index % $count];
@@ -359,8 +400,20 @@ class LeadController extends Controller
                 'assigned_user_name' => $agent->name,
                 'assigned_at' => now(),
             ]);
+            $agentCounts[$agent->id] = ($agentCounts[$agent->id] ?? 0) + 1;
             $index++;
             $distributedCount++;
+        }
+
+        // Notify telecallers who received leads
+        foreach ($agentCounts as $agentId => $assignedNum) {
+            CrmNotification::notifyUser(
+                $agentId,
+                "Leads Distributed to You! 👤",
+                "{$assignedNum} new lead(s) have been assigned to you via Auto-Distribute.",
+                null,
+                ['type' => 'lead_assigned', 'count' => $assignedNum]
+            );
         }
 
         return response()->json([

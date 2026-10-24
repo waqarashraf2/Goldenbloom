@@ -4,6 +4,7 @@ use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\CallLogController;
 use App\Http\Controllers\Api\DashboardController;
 use App\Http\Controllers\Api\LeadController;
+use App\Http\Controllers\Api\NotificationController;
 use App\Http\Controllers\Api\UserController;
 use App\Http\Controllers\Api\WebhookController;
 use Illuminate\Support\Facades\Route;
@@ -46,4 +47,10 @@ Route::middleware('auth:sanctum')->group(function () {
     // CRM Settings & Webhook Key Config
     Route::get('/settings', [WebhookController::class, 'getSettings']);
     Route::post('/settings', [WebhookController::class, 'updateSettings']);
+
+    // Notifications (Admin & Telecaller)
+    Route::get('/notifications', [NotificationController::class, 'index']);
+    Route::get('/notifications/unread', [NotificationController::class, 'unread']);
+    Route::post('/notifications/mark-read', [NotificationController::class, 'markAsRead']);
+    Route::post('/notifications/clear', [NotificationController::class, 'clear']);
 });

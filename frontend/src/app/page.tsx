@@ -9,6 +9,8 @@ import CsvImportView from '@/components/CsvImportView';
 import TelecallersView from '@/components/TelecallersView';
 import CallHistoryView from '@/components/CallHistoryView';
 import LogCallModal from '@/components/LogCallModal';
+import LeadDetailsModal from '@/components/LeadDetailsModal';
+import NotificationBell from '@/components/NotificationBell';
 import { 
   LayoutDashboard, Users, Clock, PhoneCall, FileSpreadsheet, 
   LogOut, Shield, Menu, X, Key, TableProperties, Database,
@@ -41,6 +43,21 @@ export default function CrmApp() {
   // Leads filter state triggered by dashboard cards
   const [leadsFilter, setLeadsFilter] = useState<{ source?: string; today_followups?: boolean } | undefined>(undefined);
 
+  // Lead Details Modal triggered from Notification click or URL ?lead_id=
+  const [targetNotificationLead, setTargetNotificationLead] = useState<Lead | null>(null);
+
+  const handleOpenLeadById = async (leadId: number) => {
+    try {
+      const lead = await apiRequest<Lead>(`/leads/${leadId}`);
+      if (lead) {
+        setTargetNotificationLead(lead);
+      }
+    } catch (err) {
+      console.error('Failed to open lead from notification', err);
+      setActiveTab('leads');
+    }
+  };
+
   // Initial load: parse local auth & URL ?tab= parameter
   useEffect(() => {
     const savedToken = localStorage.getItem('crm_token');
@@ -59,6 +76,8 @@ export default function CrmApp() {
     if (typeof window !== 'undefined') {
       const searchParams = new URLSearchParams(window.location.search);
       const urlTab = searchParams.get('tab');
+      const urlLeadId = searchParams.get('lead_id');
+
       if (urlTab && VALID_TABS.includes(urlTab)) {
         setActiveTab(urlTab);
         if (urlTab === 'followups') {
@@ -66,6 +85,10 @@ export default function CrmApp() {
         }
       } else if (user && user.role === 'telecaller') {
         setActiveTab('leads');
+      }
+
+      if (urlLeadId && savedToken) {
+        handleOpenLeadById(parseInt(urlLeadId));
       }
     }
 
@@ -527,6 +550,9 @@ export default function CrmApp() {
           </div>
 
           <div className="flex items-center gap-2 sm:gap-3 text-xs">
+            {/* Real-time Notification Bell & Mobile/PC Screen Alerts */}
+            <NotificationBell onOpenLead={handleOpenLeadById} />
+
             {/* Manual Refresh Button */}
             <button
               type="button"
@@ -612,6 +638,21 @@ export default function CrmApp() {
           onClose={() => setActiveCallModalLead(null)}
           onSuccess={handleCallLogged}
           isAdmin={currentUser?.role === 'admin' || currentUser?.role === 'super_admin'}
+        />
+      )}
+
+      {/* Notification-triggered Lead Details Modal */}
+      {targetNotificationLead && (
+        <LeadDetailsModal
+          lead={targetNotificationLead}
+          onClose={() => setTargetNotificationLead(null)}
+          onOpenLogCall={(lead) => {
+            setTargetNotificationLead(null);
+            setActiveCallModalLead(lead);
+          }}
+          isAdmin={currentUser?.role === 'admin' || currentUser?.role === 'super_admin'}
+          isSuperAdmin={currentUser?.role === 'super_admin'}
+          telecallers={telecallers}
         />
       )}
 

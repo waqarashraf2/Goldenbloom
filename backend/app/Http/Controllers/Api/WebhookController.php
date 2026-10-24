@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\CrmNotification;
 use App\Models\CrmSetting;
 use App\Models\Lead;
 use App\Models\User;
@@ -179,6 +180,14 @@ class WebhookController extends Controller
                 'custom_fields' => $mergedCustom,
             ]);
 
+            // Notify Admins about repeat inquiry
+            CrmNotification::notifyAdmins(
+                "Repeat Inquiry Received! 🔄",
+                "{$existing->name} ({$existing->phone}) submitted another inquiry (#{$newSubmissionNumber})" . ($service ? " for {$service}" : ""),
+                $existing->id,
+                ['lead_id' => $existing->id, 'type' => 'repeat_inquiry', 'client_name' => $existing->name, 'phone' => $existing->phone]
+            );
+
             return response()->json([
                 'success' => true,
                 'message' => "Repeat inquiry #{$newSubmissionNumber} recorded for {$existing->name}.",
@@ -221,6 +230,14 @@ class WebhookController extends Controller
             'assigned_at' => null,
             'custom_fields' => $customFields,
         ]);
+
+        // Notify Admins about new inbound lead
+        CrmNotification::notifyAdmins(
+            "New Lead Received! 🌿",
+            "{$newLead->name} ({$newLead->phone}) submitted an inquiry" . ($service ? " for {$service}" : ""),
+            $newLead->id,
+            ['lead_id' => $newLead->id, 'type' => 'new_lead', 'client_name' => $newLead->name, 'phone' => $newLead->phone]
+        );
 
         return response()->json([
             'success' => true,
