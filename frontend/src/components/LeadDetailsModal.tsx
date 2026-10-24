@@ -1,12 +1,13 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import { Lead, User } from '@/lib/api';
 import { 
   X, Phone, MessageSquare, Calendar, Clock, Globe, Shield, 
   MapPin, Home, Layers, CheckCircle2, AlertCircle, PhoneCall,
-  User as UserIcon, Tag, Sparkles, ExternalLink, History, FileText, Trash2
+  User as UserIcon, Tag, Sparkles, ExternalLink, History, FileText, Trash2, Share2
 } from 'lucide-react';
+import ShareLeadModal from '@/components/ShareLeadModal';
 
 interface LeadDetailsModalProps {
   lead: Lead;
@@ -17,6 +18,7 @@ interface LeadDetailsModalProps {
   telecallers?: User[];
   onAssignLead?: (leadId: number, userId: string) => void;
   onDeleteLead?: (leadId: number) => void;
+  onShareLead?: (lead: Lead) => void;
 }
 
 export default function LeadDetailsModal({
@@ -28,7 +30,9 @@ export default function LeadDetailsModal({
   telecallers = [],
   onAssignLead,
   onDeleteLead,
+  onShareLead,
 }: LeadDetailsModalProps) {
+  const [showShareModal, setShowShareModal] = useState(false);
   const submissions = lead.submissions || [];
   const submissionsCount = lead.submissions_count || submissions.length || 1;
 
@@ -163,6 +167,16 @@ export default function LeadDetailsModal({
                 <MessageSquare className="w-3.5 h-3.5" />
                 <span>WhatsApp</span>
               </a>
+
+              <button
+                type="button"
+                onClick={() => onShareLead ? onShareLead(lead) : setShowShareModal(true)}
+                className="px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300 rounded-lg font-bold flex items-center gap-1.5 shadow-2xs transition cursor-pointer"
+                title="Share Lead Details on WhatsApp or Copy"
+              >
+                <Share2 className="w-3.5 h-3.5 text-emerald-700" />
+                <span>Share Details</span>
+              </button>
 
               {lead.email && (
                 <span className="text-slate-600 font-medium px-2 py-1 bg-white border border-slate-200 rounded-lg">
@@ -408,8 +422,18 @@ export default function LeadDetailsModal({
           <div className="flex items-center gap-2 ml-auto">
             <button
               type="button"
+              onClick={() => onShareLead ? onShareLead(lead) : setShowShareModal(true)}
+              className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white rounded-lg text-xs font-bold flex items-center gap-1.5 shadow-2xs transition cursor-pointer"
+              title="Share Lead Details on WhatsApp"
+            >
+              <Share2 className="w-3.5 h-3.5" />
+              <span>Share Lead</span>
+            </button>
+
+            <button
+              type="button"
               onClick={onClose}
-              className="px-3 py-1.5 bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 rounded-lg text-xs font-semibold transition"
+              className="px-3 py-1.5 bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 rounded-lg text-xs font-semibold transition cursor-pointer"
             >
               Close
             </button>
@@ -419,7 +443,7 @@ export default function LeadDetailsModal({
                 onClose();
                 onOpenLogCall(lead);
               }}
-              className="px-3 py-1.5 bg-amber-700 hover:bg-amber-800 text-white rounded-lg text-xs font-bold flex items-center gap-1.5 shadow-2xs transition"
+              className="px-3 py-1.5 bg-amber-700 hover:bg-amber-800 text-white rounded-lg text-xs font-bold flex items-center gap-1.5 shadow-2xs transition cursor-pointer"
             >
               <PhoneCall className="w-3.5 h-3.5" />
               <span>Log Call</span>
@@ -428,6 +452,13 @@ export default function LeadDetailsModal({
         </div>
 
       </div>
+
+      {showShareModal && (
+        <ShareLeadModal
+          lead={lead}
+          onClose={() => setShowShareModal(false)}
+        />
+      )}
     </div>
   );
 }

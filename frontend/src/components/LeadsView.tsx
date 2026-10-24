@@ -5,9 +5,10 @@ import { Lead, User, apiRequest, API_BASE_URL } from '@/lib/api';
 import { 
   Search, Filter, Plus, PhoneCall, Phone, MessageSquare, Download, 
   RotateCcw, CheckCircle2, Clock, Calendar, AlertCircle, ArrowUpDown, 
-  UserCheck, Send, Sparkles, ExternalLink, Eye, Info, Trash2
+  UserCheck, Send, Sparkles, ExternalLink, Eye, Info, Trash2, Share2
 } from 'lucide-react';
 import LeadDetailsModal from '@/components/LeadDetailsModal';
+import ShareLeadModal from '@/components/ShareLeadModal';
 
 interface LeadsViewProps {
   currentUser: User | null;
@@ -35,6 +36,9 @@ export default function LeadsView({ currentUser, telecallers, onOpenLogCall, ini
 
   // Lead Details Modal state
   const [selectedDetailLead, setSelectedDetailLead] = useState<Lead | null>(null);
+
+  // Share Lead Modal state
+  const [sharingLead, setSharingLead] = useState<Lead | null>(null);
 
   // Sync if initialFilter changes externally
   useEffect(() => {
@@ -844,6 +848,16 @@ export default function LeadsView({ currentUser, telecallers, onOpenLogCall, ini
                         <div className="flex items-center justify-end gap-1.5">
                           <button
                             type="button"
+                            onClick={() => setSharingLead(lead)}
+                            title="Share Lead Details (WhatsApp, Copy Message)"
+                            className="p-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 hover:text-emerald-900 border border-emerald-200 hover:border-emerald-300 rounded-lg text-xs font-semibold shadow-2xs transition flex items-center gap-1 cursor-pointer"
+                          >
+                            <Share2 className="w-3.5 h-3.5 text-emerald-600" />
+                            <span className="hidden xl:inline text-[11px]">Share</span>
+                          </button>
+
+                          <button
+                            type="button"
                             onClick={() => setSelectedDetailLead(lead)}
                             title="View Full Lead Details & Received Dates History"
                             className="px-2 py-1 bg-slate-100 hover:bg-amber-100 text-slate-700 hover:text-amber-900 border border-slate-200 hover:border-amber-300 rounded-lg text-xs font-semibold shadow-2xs transition flex items-center gap-1 cursor-pointer"
@@ -1034,6 +1048,15 @@ export default function LeadsView({ currentUser, telecallers, onOpenLogCall, ini
           telecallers={telecallers}
           onAssignLead={handleInlineAssign}
           onDeleteLead={(id) => handleDeleteLead(id)}
+          onShareLead={(l) => setSharingLead(l)}
+        />
+      )}
+
+      {/* Share Lead Modal (WhatsApp & Clipboard) */}
+      {sharingLead && (
+        <ShareLeadModal
+          lead={sharingLead}
+          onClose={() => setSharingLead(null)}
         />
       )}
 
