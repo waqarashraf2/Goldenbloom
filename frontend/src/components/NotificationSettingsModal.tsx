@@ -200,50 +200,52 @@ export default function NotificationSettingsModal({
         </div>
 
         {/* Tab Switcher */}
-        <div className="flex border-b border-slate-200 bg-slate-50 px-6 pt-3 gap-2">
+        <div className="flex border-b border-slate-200 bg-slate-50 px-3 sm:px-6 pt-3 gap-1 sm:gap-2">
           <button
             onClick={() => setActiveTab('push')}
-            className={`flex items-center gap-2 px-4 py-2.5 font-semibold text-sm rounded-t-xl transition-all border-b-2 ${
+            className={`flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 sm:py-2.5 font-semibold text-xs sm:text-sm rounded-t-xl transition-all border-b-2 ${
               activeTab === 'push'
                 ? 'bg-white text-emerald-700 border-emerald-600 shadow-sm'
                 : 'text-slate-500 hover:text-slate-800 border-transparent'
             }`}
           >
-            <Smartphone className="w-4 h-4" />
-            <span>📱 Lock Screen & Slide Bar (iPhone & Android)</span>
+            <Smartphone className="w-4 h-4 shrink-0" />
+            <span className="sm:hidden">Screen Alerts</span>
+            <span className="hidden sm:inline">📱 Lock Screen &amp; Slide Bar</span>
           </button>
           <button
             onClick={() => setActiveTab('whatsapp')}
-            className={`flex items-center gap-2 px-4 py-2.5 font-semibold text-sm rounded-t-xl transition-all border-b-2 ${
+            className={`flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 sm:py-2.5 font-semibold text-xs sm:text-sm rounded-t-xl transition-all border-b-2 ${
               activeTab === 'whatsapp'
                 ? 'bg-white text-emerald-700 border-emerald-600 shadow-sm'
                 : 'text-slate-500 hover:text-slate-800 border-transparent'
             }`}
           >
-            <MessageSquare className="w-4 h-4 text-emerald-600" />
-            <span>💬 WhatsApp Instant Alerts</span>
+            <MessageSquare className="w-4 h-4 text-emerald-600 shrink-0" />
+            <span className="sm:hidden">WhatsApp</span>
+            <span className="hidden sm:inline">💬 WhatsApp Alerts</span>
           </button>
         </div>
 
         {/* Modal Body */}
-        <div className="p-6 overflow-y-auto space-y-6 flex-1">
+        <div className="p-4 sm:p-6 overflow-y-auto space-y-5 sm:space-y-6 flex-1">
 
           {/* TAB 1: LOCK SCREEN & SLIDE BAR PUSH NOTIFICATIONS */}
           {activeTab === 'push' && (
-            <div className="space-y-6 animate-in fade-in duration-150">
+            <div className="space-y-5 sm:space-y-6 animate-in fade-in duration-150">
               {/* Permission & Test Card */}
-              <div className="p-5 rounded-2xl bg-emerald-50 border border-emerald-200/80">
-                <div className="flex items-start justify-between gap-4">
-                  <div>
+              <div className="p-4 sm:p-5 rounded-2xl bg-emerald-50 border border-emerald-200/80">
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4">
+                  <div className="flex-1">
                     <div className="flex items-center gap-2">
-                      <span className={`w-3 h-3 rounded-full ${permissionStatus === 'granted' ? 'bg-emerald-500 animate-pulse' : 'bg-amber-500'}`} />
-                      <h3 className="font-bold text-slate-800">
+                      <span className={`w-3 h-3 rounded-full shrink-0 ${permissionStatus === 'granted' ? 'bg-emerald-500 animate-pulse' : 'bg-amber-500'}`} />
+                      <h3 className="font-bold text-xs sm:text-sm text-slate-800">
                         {permissionStatus === 'granted' 
                           ? 'Lock Screen Alerts: ACTIVATED ✅' 
                           : 'Lock Screen Permission Needed'}
                       </h3>
                     </div>
-                    <p className="text-xs text-slate-600 mt-1.5 leading-relaxed">
+                    <p className="text-[11px] sm:text-xs text-slate-600 mt-1 leading-relaxed">
                       Whenever new leads arrive from Meta Ads or Website, an instant chime sound and a notification banner will appear right on your phone&apos;s slide bar and lock screen.
                     </p>
                   </div>
@@ -251,7 +253,7 @@ export default function NotificationSettingsModal({
                   <button
                     onClick={handleTestLockScreen}
                     disabled={testingPush}
-                    className="flex-shrink-0 px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-semibold text-xs shadow-md transition-all flex items-center gap-2"
+                    className="w-full sm:w-auto px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-semibold text-xs shadow-md transition-all flex items-center justify-center gap-2 shrink-0"
                   >
                     <Bell className="w-4 h-4" />
                     <span>{testingPush ? 'Testing...' : 'Test On My Screen'}</span>
