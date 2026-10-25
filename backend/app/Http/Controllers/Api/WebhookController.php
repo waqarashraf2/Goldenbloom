@@ -260,6 +260,7 @@ class WebhookController extends Controller
         $autoAssign = CrmSetting::get('auto_assign_enabled', '1');
         $companyName = CrmSetting::get('company_name', 'Golden Bloom UAE');
         $websiteUrl = CrmSetting::get('website_url', 'https://goldenbloom.ae');
+        $fcmServerKey = CrmSetting::get('fcm_server_key', '');
 
         $baseUrl = url('/api/webhooks/lead');
 
@@ -269,6 +270,7 @@ class WebhookController extends Controller
             'auto_assign_enabled' => $autoAssign === '1',
             'company_name' => $companyName,
             'website_url' => $websiteUrl,
+            'fcm_server_key' => $fcmServerKey,
         ]);
     }
 
@@ -284,6 +286,7 @@ class WebhookController extends Controller
             'regenerate_key' => 'nullable|boolean',
             'company_name' => 'nullable|string',
             'website_url' => 'nullable|string',
+            'fcm_server_key' => 'nullable|string',
         ]);
 
         if (!empty($validated['regenerate_key'])) {
@@ -303,6 +306,10 @@ class WebhookController extends Controller
             CrmSetting::set('website_url', $validated['website_url']);
         }
 
+        if (isset($validated['fcm_server_key'])) {
+            CrmSetting::set('fcm_server_key', $validated['fcm_server_key']);
+        }
+
         return response()->json([
             'message' => 'Settings saved successfully.',
             'settings' => [
@@ -311,6 +318,7 @@ class WebhookController extends Controller
                 'auto_assign_enabled' => CrmSetting::get('auto_assign_enabled') === '1',
                 'company_name' => CrmSetting::get('company_name'),
                 'website_url' => CrmSetting::get('website_url'),
+                'fcm_server_key' => CrmSetting::get('fcm_server_key'),
             ],
         ]);
     }

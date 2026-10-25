@@ -71,6 +71,13 @@ class CrmNotification extends Model
             if (!empty($records)) {
                 static::insert($records);
             }
+
+            // Trigger Real-time FCM Mobile Push to all Admins (Heads-up Screen Alert)
+            \App\Services\FcmService::sendToAdmins(
+                $title,
+                $message,
+                array_merge($data, ['lead_id' => $leadId, 'type' => $data['type'] ?? 'new_lead'])
+            );
         } catch (\Throwable $e) {
             \Log::error('Failed to notify admins: ' . $e->getMessage());
         }
@@ -96,6 +103,14 @@ class CrmNotification extends Model
                 'data' => $data,
                 'is_read' => false,
             ]);
+
+            // Trigger Real-time FCM Mobile Push to assigned telecaller (Heads-up Screen Alert)
+            \App\Services\FcmService::sendToUser(
+                $userId,
+                $title,
+                $message,
+                array_merge($data, ['lead_id' => $leadId, 'type' => $data['type'] ?? 'lead_assigned'])
+            );
         } catch (\Throwable $e) {
             \Log::error('Failed to notify user: ' . $e->getMessage());
         }

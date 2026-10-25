@@ -1,0 +1,59 @@
+name: Build Android APK
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'mobile_app/**'
+
+jobs:
+  build-apk:
+    name: Build Android Release APK
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'zulu'
+          java-version: '17'
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.24.3'
+          channel: 'stable'
+          cache: true
+
+      - name: Install Dependencies
+        working-directory: mobile_app
+        run: flutter pub get
+
+      - name: Build Android APK
+        working-directory: mobile_app
+        run: flutter build apk --release --no-tree-shake-icons
+
+      - name: Upload APK to Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: goldenbloom-crm-apk
+          path: mobile_app/build/app/outputs/flutter-apk/app-release.apk
+
+      - name: Deploy APK to Portal Downloads
+        continue-on-error: true
+        env:
+          SSH_KEY: ${{ secrets.HOSTINGER_SSH_KEY }}
+          HOST: ${{ secrets.HOSTINGER_HOST }}
+          USER: ${{ secrets.HOSTINGER_USER }}
+          PORT: ${{ secrets.HOSTINGER_PORT }}
+        run: |
+          if [ -n "$SSH_KEY" ]; then
+            mkdir -p ~/.ssh
+            echo "$SSH_KEY" > ~/.ssh/deploy_key
+            chmod 600 ~/.ssh/deploy_key
+            scp -P ${PORT:-22} -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no \
+              mobile_app/build/app/outputs/flutter-apk/app-release.apk \
+              ${USER}@${HOST}:/home/${USER}/domains/crm.goldenbloom.ae/public_html/downloads/goldenbloom-crm.apk || true
+          fi

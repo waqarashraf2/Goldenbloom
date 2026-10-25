@@ -3,6 +3,7 @@
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\CallLogController;
 use App\Http\Controllers\Api\DashboardController;
+use App\Http\Controllers\Api\FcmController;
 use App\Http\Controllers\Api\LeadController;
 use App\Http\Controllers\Api\NotificationController;
 use App\Http\Controllers\Api\UserController;
@@ -53,4 +54,9 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/notifications/unread', [NotificationController::class, 'unread']);
     Route::post('/notifications/mark-read', [NotificationController::class, 'markAsRead']);
     Route::post('/notifications/clear', [NotificationController::class, 'clear']);
+
+    // Mobile App FCM Device Tokens & Push Test
+    Route::post('/fcm/token', [FcmController::class, 'store']);
+    Route::delete('/fcm/token', [FcmController::class, 'destroy']);
+    Route::post('/fcm/test', [FcmController::class, 'test']);
 });

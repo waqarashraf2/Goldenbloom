@@ -11,10 +11,11 @@ import CallHistoryView from '@/components/CallHistoryView';
 import LogCallModal from '@/components/LogCallModal';
 import LeadDetailsModal from '@/components/LeadDetailsModal';
 import NotificationBell from '@/components/NotificationBell';
+import DownloadApkModal from '@/components/DownloadApkModal';
 import { 
   LayoutDashboard, Users, Clock, PhoneCall, FileSpreadsheet, 
   LogOut, Shield, Menu, X, Key, TableProperties, Database,
-  PanelLeftClose, PanelLeftOpen, RotateCw
+  PanelLeftClose, PanelLeftOpen, RotateCw, Smartphone, Download
 } from 'lucide-react';
 
 const VALID_TABS = ['dashboard', 'leads', 'followups', 'activities', 'telecallers', 'import', 'integrations'];
@@ -28,6 +29,7 @@ export default function CrmApp() {
   const [activeCallModalLead, setActiveCallModalLead] = useState<Lead | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [showDownloadApkModal, setShowDownloadApkModal] = useState(false);
 
   // Auto-refresh and manual refresh state
   const [refreshTrigger, setRefreshTrigger] = useState<number>(0);
@@ -469,6 +471,24 @@ export default function CrmApp() {
         {/* Sidebar Footer: User Card */}
         <div className="p-2.5 border-t border-slate-100 bg-slate-50/50">
           
+          {/* Download Mobile APK Card */}
+          <button
+            type="button"
+            onClick={() => setShowDownloadApkModal(true)}
+            className="w-full mb-2 p-2 rounded-xl bg-linear-to-r from-amber-50 to-amber-100/80 hover:from-amber-100 hover:to-amber-200/80 border border-amber-300 text-amber-950 flex items-center justify-between text-xs font-bold transition shadow-2xs cursor-pointer group"
+          >
+            <div className="flex items-center gap-2">
+              <div className="w-6 h-6 rounded-lg bg-amber-700 text-white flex items-center justify-center shrink-0 shadow-2xs">
+                <Smartphone className="w-3.5 h-3.5" />
+              </div>
+              <div className="text-left">
+                <div className="text-[11px] font-bold leading-tight">Android App (.APK)</div>
+                <div className="text-[9px] text-amber-700 font-medium">Screen Alerts Ready</div>
+              </div>
+            </div>
+            <Download className="w-3.5 h-3.5 text-amber-700 group-hover:translate-y-0.5 transition" />
+          </button>
+
           {/* User Profile Card */}
           <div className="flex items-center justify-between p-2 rounded-lg bg-white border border-slate-200 shadow-2xs">
             <div className="flex items-center gap-2 min-w-0">
@@ -550,6 +570,17 @@ export default function CrmApp() {
           </div>
 
           <div className="flex items-center gap-2 sm:gap-3 text-xs">
+            {/* Download Mobile App Button */}
+            <button
+              type="button"
+              onClick={() => setShowDownloadApkModal(true)}
+              title="Download Android Mobile App (.APK) for WhatsApp-style screen notifications"
+              className="px-2.5 py-1 rounded-lg bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-300 text-xs font-bold flex items-center gap-1.5 shadow-2xs transition cursor-pointer"
+            >
+              <Smartphone className="w-3.5 h-3.5 text-amber-700" />
+              <span className="hidden sm:inline">Mobile App (.APK)</span>
+            </button>
+
             {/* Real-time Notification Bell & Mobile/PC Screen Alerts */}
             <NotificationBell onOpenLead={handleOpenLeadById} />
 
@@ -654,6 +685,11 @@ export default function CrmApp() {
           isSuperAdmin={currentUser?.role === 'super_admin'}
           telecallers={telecallers}
         />
+      )}
+
+      {/* Mobile APK Download Modal */}
+      {showDownloadApkModal && (
+        <DownloadApkModal onClose={() => setShowDownloadApkModal(false)} />
       )}
 
     </div>
