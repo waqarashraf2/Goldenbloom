@@ -72,12 +72,20 @@ class CrmNotification extends Model
                 static::insert($records);
             }
 
-            // Trigger Real-time FCM Mobile Push to all Admins (Heads-up Screen Alert)
+            // 1. Trigger Real-time FCM Mobile Push (Lock Screen & Banner)
             \App\Services\FcmService::sendToAdmins(
                 $title,
                 $message,
                 array_merge($data, ['lead_id' => $leadId, 'type' => $data['type'] ?? 'new_lead'])
             );
+
+            // 2. Trigger Instant WhatsApp Alert to configured Admin Phone Numbers
+            if ($leadId) {
+                $lead = Lead::find($leadId);
+                if ($lead) {
+                    \App\Services\WhatsAppService::sendNewLeadAlert($lead);
+                }
+            }
         } catch (\Throwable $e) {
             \Log::error('Failed to notify admins: ' . $e->getMessage());
         }
@@ -104,13 +112,21 @@ class CrmNotification extends Model
                 'is_read' => false,
             ]);
 
-            // Trigger Real-time FCM Mobile Push to assigned telecaller (Heads-up Screen Alert)
+            // 1. Trigger Real-time FCM Mobile Push (Lock Screen & Banner)
             \App\Services\FcmService::sendToUser(
                 $userId,
                 $title,
                 $message,
                 array_merge($data, ['lead_id' => $leadId, 'type' => $data['type'] ?? 'lead_assigned'])
             );
+
+            // 2. Trigger Instant WhatsApp Alert to assigned Telecaller's phone
+            if ($leadId) {
+                $lead = Lead::find($leadId);
+                if ($lead) {
+                    \App\Services\WhatsAppService::sendAssignmentAlert($lead, $targetUser);
+                }
+            }
         } catch (\Throwable $e) {
             \Log::error('Failed to notify user: ' . $e->getMessage());
         }

@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { 
   Bell, CheckCheck, Trash2, Sparkles, UserCheck, RefreshCw, 
-  ExternalLink, X, AlertCircle, ChevronRight, Check
+  ExternalLink, X, AlertCircle, ChevronRight, Check, Settings
 } from 'lucide-react';
 import { apiRequest } from '@/lib/api';
 import { 
@@ -15,9 +15,10 @@ import {
 
 interface NotificationBellProps {
   onOpenLead: (leadId: number) => void;
+  onOpenSettings?: () => void;
 }
 
-export default function NotificationBell({ onOpenLead }: NotificationBellProps) {
+export default function NotificationBell({ onOpenLead, onOpenSettings }: NotificationBellProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [notifications, setNotifications] = useState<CrmNotificationItem[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
@@ -62,10 +63,6 @@ export default function NotificationBell({ onOpenLead }: NotificationBellProps) 
     });
 
     const interval = setInterval(async () => {
-      if (typeof document !== 'undefined' && document.visibilityState !== 'visible') {
-        // Still poll even in background tab so mobile/desktop system notifications trigger!
-      }
-
       try {
         const sinceId = lastSeenIdRef.current;
         const res = await apiRequest<{ new_notifications: CrmNotificationItem[]; unread_count: number }>(
@@ -143,8 +140,8 @@ export default function NotificationBell({ onOpenLead }: NotificationBellProps) 
         });
         setNotifications(prev => prev.map(n => n.id === notif.id ? { ...n, is_read: true } : n));
         setUnreadCount(prev => Math.max(0, prev - 1));
-      } catch {
-        // ignore
+      } catch (err) {
+        console.error('Failed to mark notification read', err);
       }
     }
 
@@ -219,6 +216,20 @@ export default function NotificationBell({ onOpenLead }: NotificationBellProps) 
             </div>
 
             <div className="flex items-center gap-1">
+              {onOpenSettings && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsOpen(false);
+                    onOpenSettings();
+                  }}
+                  title="WhatsApp & Lock Screen Settings"
+                  className="p-1.5 hover:bg-white text-slate-500 hover:text-emerald-700 rounded-lg text-[11px] font-semibold flex items-center gap-1 transition cursor-pointer"
+                >
+                  <Settings className="w-3.5 h-3.5" />
+                </button>
+              )}
+
               {unreadCount > 0 && (
                 <button
                   type="button"
@@ -258,72 +269,77 @@ export default function NotificationBell({ onOpenLead }: NotificationBellProps) 
               <div className="flex items-start gap-2">
                 <span className="text-base">🔔</span>
                 <div className="flex-1 min-w-0">
-                  <p className="font-bold text-slate-900 text-[11px]">
-                    Get Mobile &amp; PC Screen Alerts
-                  </p>
-                  <p className="text-[10px] text-slate-600 mt-0.5 leading-tight">
-                    Receive instant notifications on your mobile screen &amp; desktop just like WhatsApp.
+                  <p className="font-bold text-slate-800 text-[11px]">Turn on Screen Notifications</p>
+                  <p className="text-[10px] text-slate-600 mt-0.5">
+                    Receive slide bar &amp; lock screen alerts even when screen is locked.
                   </p>
                   <button
                     type="button"
                     onClick={handleEnablePush}
-                    className="mt-1.5 px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white rounded-lg text-[10px] font-bold shadow-2xs transition cursor-pointer flex items-center gap-1"
+                    className="mt-1.5 px-2.5 py-1 bg-amber-800 hover:bg-amber-900 text-white font-bold rounded-lg text-[10px] transition cursor-pointer"
                   >
-                    <span>Turn On Screen Alerts</span>
+                    Allow Notifications
                   </button>
                 </div>
               </div>
             </div>
           )}
 
-          {/* Notifications List */}
+          {/* List of Notifications */}
           <div className="max-h-80 overflow-y-auto divide-y divide-slate-100">
             {loading && notifications.length === 0 ? (
-              <div className="p-6 text-center text-xs text-slate-400">
-                Loading notifications...
-              </div>
+              <div className="p-6 text-center text-xs text-slate-400">Loading notifications...</div>
             ) : notifications.length === 0 ? (
-              <div className="p-8 text-center space-y-1.5">
-                <div className="w-10 h-10 rounded-full bg-slate-100 text-slate-400 flex items-center justify-center mx-auto text-base">
-                  ✨
+              <div className="p-8 text-center">
+                <div className="w-10 h-10 mx-auto rounded-full bg-slate-100 flex items-center justify-center text-slate-400 mb-2">
+                  <Bell className="w-5 h-5" />
                 </div>
-                <p className="font-bold text-slate-700 text-xs">All Caught Up!</p>
-                <p className="text-[11px] text-slate-400">
-                  New leads and assignment alerts will appear here in real-time.
+                <p className="text-xs font-semibold text-slate-600">No notifications yet</p>
+                <p className="text-[11px] text-slate-400 mt-0.5">
+                  You will be alerted when new leads arrive or are assigned to you.
                 </p>
               </div>
             ) : (
               notifications.map((notif) => {
-                const isNewLead = notif.type === 'new_lead' || notif.type === 'repeat_inquiry';
+                const isNew = notif.type === 'new_lead';
+                const isAssigned = notif.type === 'lead_assigned';
+                const isRepeat = notif.type === 'repeat_inquiry';
+
                 return (
                   <div
                     key={notif.id}
                     onClick={() => handleNotificationClick(notif)}
-                    className={`p-3 transition cursor-pointer flex items-start gap-2.5 hover:bg-amber-50/50 ${
-                      !notif.is_read ? 'bg-amber-50/20' : 'bg-white'
+                    className={`p-3 transition cursor-pointer flex items-start gap-3 hover:bg-slate-50 ${
+                      !notif.is_read ? 'bg-amber-50/40' : 'bg-white'
                     }`}
                   >
-                    {/* Icon */}
-                    <div className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 text-xs font-bold ${
-                      isNewLead 
-                        ? 'bg-emerald-100 text-emerald-800' 
-                        : 'bg-amber-100 text-amber-900'
-                    }`}>
-                      {isNewLead ? '🌿' : '👤'}
+                    {/* Icon Badge */}
+                    <div
+                      className={`w-7 h-7 rounded-lg shrink-0 flex items-center justify-center text-xs mt-0.5 ${
+                        isNew
+                          ? 'bg-emerald-100 text-emerald-800'
+                          : isAssigned
+                          ? 'bg-blue-100 text-blue-800'
+                          : isRepeat
+                          ? 'bg-purple-100 text-purple-800'
+                          : 'bg-slate-100 text-slate-700'
+                      }`}
+                    >
+                      {isNew ? '🌿' : isAssigned ? '🎯' : isRepeat ? '🔄' : '🔔'}
                     </div>
 
                     {/* Content */}
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between gap-1">
-                        <h4 className={`text-[11px] truncate ${!notif.is_read ? 'font-black text-slate-900' : 'font-semibold text-slate-700'}`}>
+                        <p className={`text-xs truncate ${!notif.is_read ? 'font-bold text-slate-900' : 'font-medium text-slate-700'}`}>
                           {notif.title}
-                        </h4>
-                        <span className="text-[9px] text-slate-400 shrink-0 font-medium">
+                        </p>
+                        <span className="text-[10px] text-slate-400 whitespace-nowrap">
                           {formatTimeAgo(notif.created_at)}
                         </span>
                       </div>
 
-                      <p className="text-[11px] text-slate-600 line-clamp-2 mt-0.5 leading-snug">
+                      <p className="text-[11px] text-slate-600 mt-0.5 line-clamp-2 leading-relaxed">
                         {notif.message}
                       </p>
 
@@ -345,11 +361,24 @@ export default function NotificationBell({ onOpenLead }: NotificationBellProps) 
             )}
           </div>
 
-          {/* Footer */}
-          <div className="p-2.5 bg-slate-50 border-t border-slate-200 text-center">
-            <span className="text-[10px] text-slate-400">
-              ⚡ Real-time alerts synced with WhatsApp &amp; System Notifications
+          {/* Footer with settings link */}
+          <div className="p-2.5 bg-slate-50 border-t border-slate-200 flex items-center justify-between text-[11px]">
+            <span className="text-slate-500 font-medium text-[10px]">
+              Slide bar &amp; Lock screen alerts
             </span>
+            {onOpenSettings && (
+              <button
+                type="button"
+                onClick={() => {
+                  setIsOpen(false);
+                  onOpenSettings();
+                }}
+                className="text-emerald-700 hover:text-emerald-800 font-bold flex items-center gap-1 cursor-pointer"
+              >
+                <span>💬 WhatsApp &amp; Push Setup</span>
+                <ChevronRight className="w-3 h-3" />
+              </button>
+            )}
           </div>
 
         </div>

@@ -1,5 +1,5 @@
-// Golden Bloom CRM Service Worker for Push & System Notifications
-const CACHE_NAME = 'gb-crm-sw-v1';
+// Golden Bloom CRM Service Worker for Lock Screen & Slide Bar Push Notifications
+const CACHE_NAME = 'gb-crm-sw-v2';
 
 self.addEventListener('install', (event) => {
   self.skipWaiting();
@@ -9,16 +9,22 @@ self.addEventListener('activate', (event) => {
   event.waitUntil(self.clients.claim());
 });
 
-// Handle incoming Web Push (from push service or background)
+// Handle incoming Web Push from server or background
 self.addEventListener('push', (event) => {
-  let title = 'Golden Bloom CRM';
+  let title = 'Golden Bloom CRM 🌿';
   let options = {
     body: 'New notification received',
     icon: '/icon-192.png',
     badge: '/icon-32.png',
-    vibrate: [200, 100, 200],
-    data: {},
+    vibrate: [300, 100, 300, 100, 300],
+    requireInteraction: true, // Keeps notification active in slide bar & lock screen!
+    renotify: true,
+    silent: false,
     tag: 'gb-notification',
+    data: {},
+    actions: [
+      { action: 'open_lead', title: '👁️ Open Lead Details' }
+    ]
   };
 
   if (event.data) {
@@ -30,6 +36,7 @@ self.addEventListener('push', (event) => {
       options.data = payload;
       if (payload.lead_id) {
         options.tag = `gb-lead-${payload.lead_id}`;
+        options.data.lead_id = payload.lead_id;
       }
     } catch {
       options.body = event.data.text();
@@ -39,7 +46,7 @@ self.addEventListener('push', (event) => {
   event.waitUntil(self.registration.showNotification(title, options));
 });
 
-// Handle user clicking notification on Mobile or Desktop system tray
+// Handle user clicking notification on Mobile Slide Bar or Lock Screen or Desktop Tray
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
   const data = event.notification.data || {};
@@ -48,7 +55,7 @@ self.addEventListener('notificationclick', (event) => {
 
   event.waitUntil(
     self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
-      // If a CRM tab is already open, focus it and navigate to the lead
+      // If a CRM window is already open, focus it and open the target lead
       for (const client of clientList) {
         if ('focus' in client && client.url.includes(self.registration.scope)) {
           if (leadId) {
@@ -57,7 +64,7 @@ self.addEventListener('notificationclick', (event) => {
           return client.focus();
         }
       }
-      // If no tab is open, open a new window
+      // If no tab is open, launch a new window
       if (self.clients.openWindow) {
         return self.clients.openWindow(targetPath);
       }

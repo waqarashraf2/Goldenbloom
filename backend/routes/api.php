@@ -8,6 +8,7 @@ use App\Http\Controllers\Api\LeadController;
 use App\Http\Controllers\Api\NotificationController;
 use App\Http\Controllers\Api\UserController;
 use App\Http\Controllers\Api\WebhookController;
+use App\Http\Controllers\Api\WhatsAppController;
 use Illuminate\Support\Facades\Route;
 
 // Public routes
@@ -54,6 +55,11 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/notifications/unread', [NotificationController::class, 'unread']);
     Route::post('/notifications/mark-read', [NotificationController::class, 'markAsRead']);
     Route::post('/notifications/clear', [NotificationController::class, 'clear']);
+
+    // WhatsApp Instant Alerts & Notification Numbers
+    Route::get('/whatsapp/settings', [WhatsAppController::class, 'getSettings']);
+    Route::post('/whatsapp/settings', [WhatsAppController::class, 'updateSettings']);
+    Route::post('/whatsapp/test', [WhatsAppController::class, 'sendTest']);
 
     // Mobile App FCM Device Tokens & Push Test
     Route::post('/fcm/token', [FcmController::class, 'store']);

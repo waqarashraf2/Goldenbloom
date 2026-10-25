@@ -1,9 +1,23 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import "./globals.css";
+
+export const viewport: Viewport = {
+  themeColor: "#166534",
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
+};
 
 export const metadata: Metadata = {
   title: "Golden Bloom CRM | Leads & Telecalling Management",
   description: "Centralized Lead Ingestion, Google Sheet Sync, and Telecaller Management CRM for Golden Bloom UAE (goldenbloom.ae)",
+  manifest: "/manifest.json",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "black-translucent",
+    title: "Golden Bloom",
+  },
   icons: {
     icon: [
       { url: "/favicon.ico?v=2", sizes: "any" },
@@ -29,6 +43,11 @@ export default function RootLayout({
         <link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png?v=2" />
         <link rel="shortcut icon" href="/favicon.ico?v=2" />
         <link rel="apple-touch-icon" href="/icon-192.png?v=2" />
+        <link rel="manifest" href="/manifest.json" />
+        <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+        <meta name="apple-mobile-web-app-title" content="Golden Bloom" />
+        <meta name="mobile-web-app-capable" content="yes" />
       </head>
       <body className="min-h-full flex flex-col bg-slate-50/50 text-slate-800">
         {children}

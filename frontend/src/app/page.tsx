@@ -12,10 +12,11 @@ import LogCallModal from '@/components/LogCallModal';
 import LeadDetailsModal from '@/components/LeadDetailsModal';
 import NotificationBell from '@/components/NotificationBell';
 import DownloadApkModal from '@/components/DownloadApkModal';
+import NotificationSettingsModal from '@/components/NotificationSettingsModal';
 import { 
   LayoutDashboard, Users, Clock, PhoneCall, FileSpreadsheet, 
   LogOut, Shield, Menu, X, Key, TableProperties, Database,
-  PanelLeftClose, PanelLeftOpen, RotateCw, Smartphone, Download
+  PanelLeftClose, PanelLeftOpen, RotateCw, Smartphone, Download, MessageSquare
 } from 'lucide-react';
 
 const VALID_TABS = ['dashboard', 'leads', 'followups', 'activities', 'telecallers', 'import', 'integrations'];
@@ -30,6 +31,7 @@ export default function CrmApp() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [showDownloadApkModal, setShowDownloadApkModal] = useState(false);
+  const [showNotificationSettingsModal, setShowNotificationSettingsModal] = useState(false);
 
   // Auto-refresh and manual refresh state
   const [refreshTrigger, setRefreshTrigger] = useState<number>(0);
@@ -570,6 +572,17 @@ export default function CrmApp() {
           </div>
 
           <div className="flex items-center gap-2 sm:gap-3 text-xs">
+            {/* WhatsApp Alerts & Lock Screen Setup Button */}
+            <button
+              type="button"
+              onClick={() => setShowNotificationSettingsModal(true)}
+              title="Configure WhatsApp & Lock Screen Notifications"
+              className="px-2.5 py-1 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-900 border border-emerald-300 text-xs font-bold flex items-center gap-1.5 shadow-2xs transition cursor-pointer"
+            >
+              <MessageSquare className="w-3.5 h-3.5 text-emerald-700" />
+              <span className="hidden sm:inline">WhatsApp Alerts</span>
+            </button>
+
             {/* Download Mobile App Button */}
             <button
               type="button"
@@ -582,7 +595,10 @@ export default function CrmApp() {
             </button>
 
             {/* Real-time Notification Bell & Mobile/PC Screen Alerts */}
-            <NotificationBell onOpenLead={handleOpenLeadById} />
+            <NotificationBell 
+              onOpenLead={handleOpenLeadById} 
+              onOpenSettings={() => setShowNotificationSettingsModal(true)} 
+            />
 
             {/* Manual Refresh Button */}
             <button
@@ -690,6 +706,15 @@ export default function CrmApp() {
       {/* Mobile APK Download Modal */}
       {showDownloadApkModal && (
         <DownloadApkModal onClose={() => setShowDownloadApkModal(false)} />
+      )}
+
+      {/* Push & WhatsApp Notification Settings Modal */}
+      {showNotificationSettingsModal && (
+        <NotificationSettingsModal
+          isOpen={showNotificationSettingsModal}
+          onClose={() => setShowNotificationSettingsModal(false)}
+          onOpenLead={handleOpenLeadById}
+        />
       )}
 
     </div>

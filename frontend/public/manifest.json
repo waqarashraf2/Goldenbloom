@@ -1,0 +1,30 @@
+{
+  "name": "Golden Bloom CRM",
+  "short_name": "GoldenBloom",
+  "description": "Centralized Leads & Telecaller Management CRM for Golden Bloom UAE",
+  "start_url": "/",
+  "id": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#064e3b",
+  "theme_color": "#166534",
+  "icons": [
+    {
+      "src": "/icon-32.png",
+      "sizes": "32x32",
+      "type": "image/png"
+    },
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/goldenbloom-logo.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

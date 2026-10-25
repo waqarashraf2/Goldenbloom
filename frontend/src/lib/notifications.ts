@@ -32,24 +32,24 @@ export function playNotificationSound(): void {
     const gain1 = ctx.createGain();
     osc1.type = 'sine';
     osc1.frequency.setValueAtTime(587.33, now);
-    gain1.gain.setValueAtTime(0.15, now);
-    gain1.gain.exponentialRampToValueAtTime(0.001, now + 0.12);
+    gain1.gain.setValueAtTime(0.2, now);
+    gain1.gain.exponentialRampToValueAtTime(0.001, now + 0.15);
     osc1.connect(gain1);
     gain1.connect(ctx.destination);
     osc1.start(now);
-    osc1.stop(now + 0.12);
+    osc1.stop(now + 0.15);
 
     // Second Tone: A5 (880 Hz) - pleasant chime
     const osc2 = ctx.createOscillator();
     const gain2 = ctx.createGain();
     osc2.type = 'sine';
-    osc2.frequency.setValueAtTime(880, now + 0.08);
-    gain2.gain.setValueAtTime(0.18, now + 0.08);
-    gain2.gain.exponentialRampToValueAtTime(0.001, now + 0.35);
+    osc2.frequency.setValueAtTime(880, now + 0.10);
+    gain2.gain.setValueAtTime(0.25, now + 0.10);
+    gain2.gain.exponentialRampToValueAtTime(0.001, now + 0.40);
     osc2.connect(gain2);
     gain2.connect(ctx.destination);
-    osc2.start(now + 0.08);
-    osc2.stop(now + 0.35);
+    osc2.start(now + 0.10);
+    osc2.stop(now + 0.40);
   } catch (err) {
     // Audio context may be restricted by browser until first user interaction
   }
@@ -94,7 +94,7 @@ export async function requestNotificationPermission(): Promise<boolean> {
 }
 
 /**
- * Fire native Mobile & Desktop System Notification
+ * Fire native Mobile Slide Bar & Lock Screen System Notification
  */
 export async function showSystemNotification(
   notification: { title: string; message: string; lead_id?: number | null },
@@ -111,20 +111,27 @@ export async function showSystemNotification(
     return;
   }
 
-  const title = notification.title || 'Golden Bloom CRM';
-  const options = {
+  const title = notification.title || 'Golden Bloom CRM 🌿';
+  const options: any = {
     body: notification.message,
     icon: '/icon-192.png',
     badge: '/icon-32.png',
-    vibrate: [200, 100, 200],
+    vibrate: [300, 100, 300, 100, 300],
+    requireInteraction: true, // Crucial for persistent slide bar & lock screen display
+    renotify: true,           // Ensures sound & vibration fire even if existing notification is present
+    silent: false,
     data: {
       lead_id: notification.lead_id,
+      url: notification.lead_id ? `/?lead_id=${notification.lead_id}` : '/',
     },
     tag: notification.lead_id ? `gb-lead-${notification.lead_id}` : `gb-notif-${Date.now()}`,
+    actions: [
+      { action: 'open_lead', title: '👁️ Open Lead' }
+    ],
   };
 
   try {
-    // Try Service Worker showNotification first (Works on Mobile Android & iOS PWA & Desktop)
+    // Try Service Worker showNotification first (Required for Mobile Android & iOS PWA & Lock Screen)
     if ('serviceWorker' in navigator) {
       const reg = await navigator.serviceWorker.ready;
       if (reg && 'showNotification' in reg) {
@@ -149,4 +156,22 @@ export async function showSystemNotification(
   } catch (err) {
     console.warn('System notification display error:', err);
   }
+}
+
+/**
+ * Trigger an instant test notification for lock screen and slide bar verification
+ */
+export async function triggerTestLockScreenNotification(onLeadClick?: (leadId: number) => void): Promise<boolean> {
+  const granted = await requestNotificationPermission();
+  if (!granted) return false;
+
+  await showSystemNotification(
+    {
+      title: '🌿 Golden Bloom Alert Test',
+      message: 'Slide bar and lock screen notification is active! Tap here to test lead deep-linking.',
+      lead_id: 1,
+    },
+    onLeadClick
+  );
+  return true;
 }
