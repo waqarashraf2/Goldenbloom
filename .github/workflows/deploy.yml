@@ -53,8 +53,8 @@ jobs:
 
       - name: Deploy Frontend to crm.goldenbloom.ae
         run: |
-          # Sync static export exclusively to crm.goldenbloom.ae/public_html
-          rsync -avz --delete \
+          # Sync static export exclusively to crm.goldenbloom.ae/public_html (preserve apk downloads)
+          rsync -avz --delete --exclude='downloads/*.apk' \
             frontend/out/ \
             hostinger:/home/${{ secrets.HOSTINGER_USER }}/domains/crm.goldenbloom.ae/public_html/
 

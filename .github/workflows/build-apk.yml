@@ -5,6 +5,7 @@ on:
   push:
     paths:
       - 'mobile_app/**'
+      - '.github/workflows/build-apk.yml'
 
 jobs:
   build-apk:
@@ -31,7 +32,7 @@ jobs:
         working-directory: mobile_app
         run: flutter pub get
 
-      - name: Build Android APK
+      - name: Build Android Release APK
         working-directory: mobile_app
         run: flutter build apk --release --no-tree-shake-icons
 
@@ -41,7 +42,7 @@ jobs:
           name: goldenbloom-crm-apk
           path: mobile_app/build/app/outputs/flutter-apk/app-release.apk
 
-      - name: Deploy APK to Portal Downloads
+      - name: Setup SSH & Deploy APK to Portal
         continue-on-error: true
         env:
           SSH_KEY: ${{ secrets.HOSTINGER_SSH_KEY }}
@@ -53,7 +54,19 @@ jobs:
             mkdir -p ~/.ssh
             echo "$SSH_KEY" > ~/.ssh/deploy_key
             chmod 600 ~/.ssh/deploy_key
-            scp -P ${PORT:-22} -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no \
+            cat << 'EOF' > ~/.ssh/config
+            Host hostinger
+              HostName ${{ secrets.HOSTINGER_HOST }}
+              Port ${{ secrets.HOSTINGER_PORT || '22' }}
+              User ${{ secrets.HOSTINGER_USER }}
+              IdentityFile ~/.ssh/deploy_key
+              StrictHostKeyChecking no
+              UserKnownHostsFile /dev/null
+              ServerAliveInterval 30
+            EOF
+
+            ssh hostinger "mkdir -p /home/${{ secrets.HOSTINGER_USER }}/domains/crm.goldenbloom.ae/public_html/downloads"
+            scp -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no \
               mobile_app/build/app/outputs/flutter-apk/app-release.apk \
-              ${USER}@${HOST}:/home/${USER}/domains/crm.goldenbloom.ae/public_html/downloads/goldenbloom-crm.apk || true
+              hostinger:/home/${{ secrets.HOSTINGER_USER }}/domains/crm.goldenbloom.ae/public_html/downloads/goldenbloom-crm.apk
           fi

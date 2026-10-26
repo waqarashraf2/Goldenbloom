@@ -1,18 +1,25 @@
+import 'dart:async';
 import 'dart:convert';
+import 'dart:typed_data';
+import 'package:flutter/foundation.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:http/http.dart' as http;
+import 'package:permission_handler/permission_handler.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-// High-Priority Notification Channel for Android heads-up alerts
+// Loud & High-Priority Notification Channel for Golden Bloom Leads
+final Int64List _vibrationPattern = Int64List.fromList([0, 500, 200, 500, 200, 500]);
+
 const AndroidNotificationChannel leadsChannel = AndroidNotificationChannel(
   'goldenbloom_leads_channel',
   'Golden Bloom Leads Alerts',
-  description: 'Instant alerts when new leads arrive or are assigned to you',
+  description: 'Instant alerts with loud sound and vibration for new and assigned leads',
   importance: Importance.max,
   playSound: true,
   enableVibration: true,
+  enableLights: true,
 );
 
 final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
@@ -20,8 +27,9 @@ final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
 
 @pragma('vm:entry-point')
 Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
-  await Firebase.initializeApp();
-  // Notification is automatically displayed on Android heads-up banner via FCM system payload
+  try {
+    await Firebase.initializeApp();
+  } catch (_) {}
 }
 
 class FcmService {
@@ -30,20 +38,21 @@ class FcmService {
   FcmService._internal();
 
   Function(String leadId)? onLeadNotificationTapped;
+  Timer? _pollerTimer;
+  int _lastSeenNotificationId = 0;
 
   Future<void> initialize({Function(String leadId)? onLeadTap}) async {
     onLeadNotificationTapped = onLeadTap;
 
-    // 1. Request OS Permission
-    final messaging = FirebaseMessaging.instance;
-    final settings = await messaging.requestPermission(
-      alert: true,
-      badge: true,
-      sound: true,
-      provisional: false,
-    );
+    // 1. Explicitly prompt user for OS notification permission (Android 13+ & iOS)
+    try {
+      final status = await Permission.notification.request();
+      debugPrint('POST_NOTIFICATIONS permission status: $status');
+    } catch (e) {
+      debugPrint('Permission request error: $e');
+    }
 
-    // 2. Setup Local Notification Channel for Heads-up Alert
+    // 2. Setup Local Notification Channel for Heads-up Alert with Loud Sound & Vibration
     const initializationSettingsAndroid =
         AndroidInitializationSettings('@mipmap/ic_launcher');
     const initializationSettings = InitializationSettings(
@@ -65,51 +74,86 @@ class FcmService {
       },
     );
 
-    await flutterLocalNotificationsPlugin
+    final androidPlugin = flutterLocalNotificationsPlugin
         .resolvePlatformSpecificImplementation<
-            AndroidFlutterLocalNotificationsPlugin>()
-        ?.createNotificationChannel(leadsChannel);
+            AndroidFlutterLocalNotificationsPlugin>();
 
-    // 3. Foreground Notification Listener (Display banner even if app is in front)
-    FirebaseMessaging.onMessage.listen((RemoteMessage message) {
-      final notification = message.notification;
-      final android = message.notification?.android;
-
-      if (notification != null) {
-        flutterLocalNotificationsPlugin.show(
-          notification.hashCode,
-          notification.title,
-          notification.body,
-          NotificationDetails(
-            android: AndroidNotificationDetails(
-              leadsChannel.id,
-              leadsChannel.name,
-              channelDescription: leadsChannel.description,
-              icon: android?.smallIcon ?? '@mipmap/ic_launcher',
-              importance: Importance.max,
-              priority: Priority.high,
-              playSound: true,
-              enableVibration: true,
-            ),
-          ),
-          payload: jsonEncode(message.data),
-        );
-      }
-    });
-
-    // 4. Notification Tapped from Background
-    FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
-      _handleMessageTap(message);
-    });
-
-    // 5. Notification Tapped from Terminated (Closed) State
-    final initialMessage = await FirebaseMessaging.instance.getInitialMessage();
-    if (initialMessage != null) {
-      _handleMessageTap(initialMessage);
+    if (androidPlugin != null) {
+      await androidPlugin.createNotificationChannel(leadsChannel);
+      await androidPlugin.requestNotificationsPermission();
     }
 
-    // 6. Register Device Token with CRM Backend
-    await syncDeviceToken();
+    // 3. Try Firebase Messaging Listeners (if Firebase initialized)
+    try {
+      final messaging = FirebaseMessaging.instance;
+      await messaging.requestPermission(
+        alert: true,
+        badge: true,
+        sound: true,
+        provisional: false,
+      );
+
+      FirebaseMessaging.onMessage.listen((RemoteMessage message) {
+        final notification = message.notification;
+        final data = message.data;
+        final leadId = data['lead_id']?.toString() ?? '';
+
+        showLeadNotification(
+          title: notification?.title ?? 'New Lead Received! 🌿',
+          body: notification?.body ?? 'A new inquiry has arrived in Golden Bloom CRM',
+          leadId: leadId,
+        );
+      });
+
+      FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
+        _handleMessageTap(message);
+      });
+
+      final initialMessage = await messaging.getInitialMessage();
+      if (initialMessage != null) {
+        _handleMessageTap(initialMessage);
+      }
+
+      await syncDeviceToken();
+    } catch (e) {
+      debugPrint('FCM listeners skipped or failed: $e');
+    }
+
+    // 4. Start Background Real-time Poller (Works even without Firebase!)
+    startFallbackPoller();
+  }
+
+  /// Fire a loud native ring alert on device
+  Future<void> showLeadNotification({
+    required String title,
+    required String body,
+    String? leadId,
+  }) async {
+    final androidDetails = AndroidNotificationDetails(
+      leadsChannel.id,
+      leadsChannel.name,
+      channelDescription: leadsChannel.description,
+      importance: Importance.max,
+      priority: Priority.max,
+      playSound: true,
+      enableVibration: true,
+      vibrationPattern: _vibrationPattern,
+      category: AndroidNotificationCategory.call,
+      fullScreenIntent: true,
+      styleInformation: BigTextStyleInformation(body),
+    );
+
+    final notificationDetails = NotificationDetails(android: androidDetails);
+
+    final payload = jsonEncode({'lead_id': leadId ?? ''});
+
+    await flutterLocalNotificationsPlugin.show(
+      DateTime.now().millisecondsSinceEpoch ~/ 1000,
+      title,
+      body,
+      notificationDetails,
+      payload: payload,
+    );
   }
 
   void _handleMessageTap(RemoteMessage message) {
@@ -117,6 +161,49 @@ class FcmService {
     if (leadId.isNotEmpty && onLeadNotificationTapped != null) {
       onLeadNotificationTapped!(leadId);
     }
+  }
+
+  /// Background fast poller that checks backend every 12 seconds for real-time ring alerts
+  void startFallbackPoller() {
+    _pollerTimer?.cancel();
+    _pollerTimer = Timer.periodic(const Duration(seconds: 12), (timer) async {
+      try {
+        final prefs = await SharedPreferences.getInstance();
+        final authToken = prefs.getString('crm_token');
+        if (authToken == null || authToken.isEmpty) return;
+
+        final url = Uri.parse(
+          'https://api.goldenbloom.ae/api/notifications/unread?since_id=$_lastSeenNotificationId',
+        );
+
+        final res = await http.get(url, headers: {
+          'Accept': 'application/json',
+          'Authorization': 'Bearer $authToken',
+        });
+
+        if (res.statusCode == 200) {
+          final data = jsonDecode(res.body);
+          final List newNotifs = data['new_notifications'] ?? [];
+
+          for (final item in newNotifs) {
+            final id = item['id'] as int? ?? 0;
+            if (id > _lastSeenNotificationId) {
+              _lastSeenNotificationId = id;
+            }
+
+            final title = item['title'] ?? 'New Lead Alert! 🌿';
+            final message = item['message'] ?? 'Check Golden Bloom CRM';
+            final leadId = item['lead_id']?.toString();
+
+            await showLeadNotification(
+              title: title,
+              body: message,
+              leadId: leadId,
+            );
+          }
+        }
+      } catch (_) {}
+    });
   }
 
   /// Send FCM token to Laravel Backend API
@@ -129,10 +216,7 @@ class FcmService {
       await prefs.setString('fcm_token', token);
 
       final authToken = prefs.getString('crm_token');
-      if (authToken == null || authToken.isEmpty) {
-        // Will sync once user logs in
-        return;
-      }
+      if (authToken == null || authToken.isEmpty) return;
 
       final url = Uri.parse('https://api.goldenbloom.ae/api/fcm/token');
       await http.post(
@@ -148,8 +232,6 @@ class FcmService {
           'device_name': 'Mobile Device',
         }),
       );
-    } catch (_) {
-      // Silently retry later
-    }
+    } catch (_) {}
   }
 }
