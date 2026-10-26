@@ -28,6 +28,17 @@ jobs:
           channel: 'stable'
           cache: true
 
+      - name: Scaffold Official Flutter Android Project
+        working-directory: mobile_app
+        run: |
+          rm -rf android
+          flutter create --platforms=android --org ae.goldenbloom --project-name goldenbloom_crm .
+
+      - name: Configure Android Manifest & Desugaring
+        working-directory: mobile_app
+        run: |
+          python3 configure_android.py
+
       - name: Install Dependencies
         working-directory: mobile_app
         run: flutter pub get
