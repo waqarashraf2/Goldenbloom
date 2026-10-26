@@ -59,30 +59,22 @@ jobs:
           path: mobile_app/build/app/outputs/flutter-apk/app-release.apk
 
       - name: Setup SSH & Deploy APK to Portal
-        continue-on-error: true
-        env:
-          SSH_KEY: ${{ secrets.HOSTINGER_SSH_KEY }}
-          HOST: ${{ secrets.HOSTINGER_HOST }}
-          USER: ${{ secrets.HOSTINGER_USER }}
-          PORT: ${{ secrets.HOSTINGER_PORT }}
         run: |
-          if [ -n "$SSH_KEY" ]; then
-            mkdir -p ~/.ssh
-            echo "$SSH_KEY" > ~/.ssh/deploy_key
-            chmod 600 ~/.ssh/deploy_key
-            cat << 'EOF' > ~/.ssh/config
-            Host hostinger
-              HostName ${{ secrets.HOSTINGER_HOST }}
-              Port ${{ secrets.HOSTINGER_PORT || '22' }}
-              User ${{ secrets.HOSTINGER_USER }}
-              IdentityFile ~/.ssh/deploy_key
-              StrictHostKeyChecking no
-              UserKnownHostsFile /dev/null
-              ServerAliveInterval 30
-            EOF
+          mkdir -p ~/.ssh
+          echo "${{ secrets.HOSTINGER_SSH_KEY }}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          cat << 'EOF' > ~/.ssh/config
+          Host hostinger
+            HostName ${{ secrets.HOSTINGER_HOST }}
+            Port ${{ secrets.HOSTINGER_PORT }}
+            User ${{ secrets.HOSTINGER_USER }}
+            IdentityFile ~/.ssh/deploy_key
+            StrictHostKeyChecking no
+            UserKnownHostsFile /dev/null
+            ServerAliveInterval 30
+          EOF
 
-            ssh hostinger "mkdir -p /home/${{ secrets.HOSTINGER_USER }}/domains/crm.goldenbloom.ae/public_html/downloads"
-            scp -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no \
-              mobile_app/build/app/outputs/flutter-apk/app-release.apk \
-              hostinger:/home/${{ secrets.HOSTINGER_USER }}/domains/crm.goldenbloom.ae/public_html/downloads/goldenbloom-crm.apk
-          fi
+          ssh hostinger "mkdir -p /home/${{ secrets.HOSTINGER_USER }}/domains/crm.goldenbloom.ae/public_html/downloads"
+          rsync -avz \
+            mobile_app/build/app/outputs/flutter-apk/app-release.apk \
+            hostinger:/home/${{ secrets.HOSTINGER_USER }}/domains/crm.goldenbloom.ae/public_html/downloads/goldenbloom-crm.apk
