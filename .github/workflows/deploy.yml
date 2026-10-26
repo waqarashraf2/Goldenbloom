@@ -66,22 +66,17 @@ jobs:
             rm -f default.php
 
             # Create SPA .htaccess for client-side routing & APK direct binary downloads
-            cat << 'HTACCESS' > .htaccess
-AddType application/vnd.android.package-archive .apk
-
-<IfModule mod_rewrite.c>
-    RewriteEngine On
-    RewriteBase /
-
-    # Exclude APK downloads from SPA rewrite
-    RewriteRule ^downloads/.*\.apk$ - [L]
-
-    RewriteRule ^index\.html$ - [L]
-    RewriteCond %{REQUEST_FILENAME} !-f
-    RewriteCond %{REQUEST_FILENAME} !-d
-    RewriteRule . /index.html [L]
-</IfModule>
-HTACCESS
+            echo "AddType application/vnd.android.package-archive .apk" > .htaccess
+            echo "" >> .htaccess
+            echo "<IfModule mod_rewrite.c>" >> .htaccess
+            echo "    RewriteEngine On" >> .htaccess
+            echo "    RewriteBase /" >> .htaccess
+            echo "    RewriteRule ^downloads/.*\.apk$ - [L]" >> .htaccess
+            echo "    RewriteRule ^index\.html$ - [L]" >> .htaccess
+            echo "    RewriteCond %{REQUEST_FILENAME} !-f" >> .htaccess
+            echo "    RewriteCond %{REQUEST_FILENAME} !-d" >> .htaccess
+            echo "    RewriteRule . /index.html [L]" >> .htaccess
+            echo "</IfModule>" >> .htaccess
           EOF
 
   deploy-backend:
