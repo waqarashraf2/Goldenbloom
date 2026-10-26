@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
+import 'package:permission_handler/permission_handler.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../services/fcm_service.dart';
@@ -66,6 +67,7 @@ class MainWebViewScreenState extends State<MainWebViewScreen> {
               InAppWebView(
                 initialUrlRequest: URLRequest(url: WebUri(initialUrl)),
                 initialSettings: InAppWebViewSettings(
+                  applicationNameForUserAgent: 'GoldenBloomApp/1.0',
                   useShouldOverrideUrlLoading: true,
                   mediaPlaybackRequiresUserGesture: false,
                   javaScriptEnabled: true,
@@ -76,6 +78,20 @@ class MainWebViewScreenState extends State<MainWebViewScreen> {
                 pullToRefreshController: pullToRefreshController,
                 onWebViewCreated: (controller) {
                   webViewController = controller;
+
+                  // Native bridge for web buttons to request OS notification permission directly
+                  controller.addJavaScriptHandler(
+                    handlerName: 'requestNativeNotificationPermission',
+                    callback: (args) async {
+                      try {
+                        final status = await Permission.notification.request();
+                        return status.isGranted;
+                      } catch (e) {
+                        debugPrint('Error requesting native notification permission: $e');
+                        return false;
+                      }
+                    },
+                  );
                 },
                 onProgressChanged: (controller, prg) {
                   setState(() {
@@ -87,6 +103,21 @@ class MainWebViewScreenState extends State<MainWebViewScreen> {
                 },
                 onLoadStop: (controller, url) async {
                   pullToRefreshController?.endRefreshing();
+
+                  // Inject native app flags into JavaScript environment
+                  try {
+                    await controller.evaluateJavascript(
+                      source: """
+                        window.__IS_GOLDENBLOOM_APP__ = true;
+                        window.isNativeApp = true;
+                        try {
+                          localStorage.setItem('gb_is_native_app', 'true');
+                          localStorage.setItem('gb_screen_alerts_enabled', 'true');
+                          window.dispatchEvent(new CustomEvent('gb_native_app_ready'));
+                        } catch(e) {}
+                      """,
+                    );
+                  } catch (_) {}
 
                   // Extract auth token from browser localStorage and sync FCM token
                   try {

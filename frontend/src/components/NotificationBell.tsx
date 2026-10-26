@@ -10,7 +10,9 @@ import {
   CrmNotificationItem, 
   requestNotificationPermission, 
   showSystemNotification,
-  registerServiceWorker
+  registerServiceWorker,
+  isScreenAlertsActive,
+  isInsideNativeApp
 } from '@/lib/notifications';
 
 interface NotificationBellProps {
@@ -24,15 +26,20 @@ export default function NotificationBell({ onOpenLead, onOpenSettings }: Notific
   const [unreadCount, setUnreadCount] = useState(0);
   const [loading, setLoading] = useState(false);
   const [permissionStatus, setPermissionStatus] = useState<string>('default');
+  const [alertsActive, setAlertsActive] = useState<boolean>(true);
+  const [enablingAlerts, setEnablingAlerts] = useState<boolean>(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const lastSeenIdRef = useRef<number>(0);
   const initialFetchDoneRef = useRef<boolean>(false);
 
   // Check browser notification permission state
   useEffect(() => {
-    if (typeof window !== 'undefined' && 'Notification' in window) {
-      setPermissionStatus(Notification.permission);
-      registerServiceWorker();
+    if (typeof window !== 'undefined') {
+      setAlertsActive(isScreenAlertsActive());
+      if ('Notification' in window) {
+        setPermissionStatus(Notification.permission);
+        registerServiceWorker();
+      }
     }
   }, []);
 
@@ -110,13 +117,21 @@ export default function NotificationBell({ onOpenLead, onOpenSettings }: Notific
   }, []);
 
   const handleEnablePush = async () => {
-    const granted = await requestNotificationPermission();
-    setPermissionStatus(granted ? 'granted' : 'denied');
-    if (granted) {
-      showSystemNotification({
-        title: 'Notifications Activated! 🔔',
-        message: 'You will now receive instant alerts on this device whenever new leads arrive or are assigned to you.',
-      });
+    setEnablingAlerts(true);
+    try {
+      const granted = await requestNotificationPermission();
+      if (granted || isScreenAlertsActive()) {
+        setAlertsActive(true);
+        setPermissionStatus('granted');
+        showSystemNotification({
+          title: 'Notifications Activated! 🔔',
+          message: 'You will now receive instant alerts on this device whenever new leads arrive or are assigned to you.',
+        });
+      }
+    } catch (err) {
+      console.warn('Error activating alerts:', err);
+    } finally {
+      setEnablingAlerts(false);
     }
   };
 
@@ -270,9 +285,9 @@ export default function NotificationBell({ onOpenLead, onOpenSettings }: Notific
               </div>
             </div>
 
-            {/* Mobile & PC Native Push Permission Prompt Banner */}
-            {permissionStatus !== 'granted' && (
-              <div className="p-3 bg-linear-to-r from-amber-50 to-emerald-50 border-b border-amber-200 text-xs shrink-0">
+            {/* Mobile & PC Native Push Permission Prompt Banner (Hidden once activated or inside native app) */}
+            {!alertsActive && !isInsideNativeApp() && (
+              <div className="p-3 bg-linear-to-r from-amber-50 to-emerald-50 border-b border-amber-200 text-xs shrink-0 animate-in fade-in duration-150">
                 <div className="flex items-start gap-2.5">
                   <span className="text-lg shrink-0 mt-0.5">🔔</span>
                   <div className="flex-1 min-w-0">
@@ -283,9 +298,17 @@ export default function NotificationBell({ onOpenLead, onOpenSettings }: Notific
                     <button
                       type="button"
                       onClick={handleEnablePush}
-                      className="mt-2 px-3 py-1.5 bg-emerald-700 hover:bg-emerald-800 active:scale-95 text-white font-bold rounded-lg text-xs transition cursor-pointer shadow-xs inline-flex items-center gap-1"
+                      disabled={enablingAlerts}
+                      className="mt-2 px-3 py-1.5 bg-emerald-700 hover:bg-emerald-800 active:scale-95 text-white font-bold rounded-lg text-xs transition cursor-pointer shadow-xs inline-flex items-center gap-1.5 disabled:opacity-75"
                     >
-                      <span>Allow Screen Alerts</span>
+                      {enablingAlerts ? (
+                        <>
+                          <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                          <span>Activating...</span>
+                        </>
+                      ) : (
+                        <span>Allow Screen Alerts</span>
+                      )}
                     </button>
                   </div>
                 </div>

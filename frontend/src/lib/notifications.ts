@@ -16,8 +16,47 @@ export interface CrmNotificationItem {
 }
 
 /**
+ * Detects if the current session is running inside the official Golden Bloom Mobile App
+ * or installed Standalone PWA (Home Screen App).
+ */
+export function isInsideNativeApp(): boolean {
+  if (typeof window === 'undefined') return false;
+  
+  try {
+    const isCustomUA = /GoldenBloomApp/i.test(navigator.userAgent);
+    const isGlobalVar = (window as any).__IS_GOLDENBLOOM_APP__ === true || (window as any).isNativeApp === true;
+    const isStorage = localStorage.getItem('gb_is_native_app') === 'true';
+    const isStandalone = (window.navigator as any).standalone === true || 
+      window.matchMedia('(display-mode: standalone)').matches;
+
+    return Boolean(isCustomUA || isGlobalVar || isStorage || isStandalone);
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Checks if screen alerts have already been turned on by the user or are active.
+ */
+export function isScreenAlertsActive(): boolean {
+  if (typeof window === 'undefined') return false;
+
+  try {
+    // If inside native app, native FCM & background engine handle alerts automatically
+    if (isInsideNativeApp()) return true;
+
+    // Check if user has already granted or enabled alerts previously
+    const alreadySaved = localStorage.getItem('gb_screen_alerts_enabled') === 'true';
+    const browserGranted = 'Notification' in window && Notification.permission === 'granted';
+
+    return alreadySaved || browserGranted;
+  } catch {
+    return false;
+  }
+}
+
+/**
  * Synthesizes a crisp, pleasant messaging chime via Web Audio API
- * (Guaranteed to work without needing an external audio file).
  */
 export function playNotificationSound(): void {
   try {
@@ -50,7 +89,7 @@ export function playNotificationSound(): void {
     gain2.connect(ctx.destination);
     osc2.start(now + 0.10);
     osc2.stop(now + 0.40);
-  } catch (err) {
+  } catch {
     // Audio context may be restricted by browser until first user interaction
   }
 }
@@ -73,22 +112,64 @@ export async function registerServiceWorker(): Promise<ServiceWorkerRegistration
 }
 
 /**
- * Request OS / Browser notification permission
+ * Request OS / Browser notification permission across Android APK, iPhone Safari & PC.
+ * Safely persists enabled state so users are never repeatedly prompted.
  */
 export async function requestNotificationPermission(): Promise<boolean> {
-  if (typeof window === 'undefined' || !('Notification' in window)) {
+  if (typeof window === 'undefined') {
     return false;
   }
 
+  // 1. Android Flutter App Native Bridge: Request Android OS POST_NOTIFICATIONS dialog
   try {
-    const permission = await Notification.requestPermission();
-    if (permission === 'granted') {
-      await registerServiceWorker();
-      return true;
+    const flutterWebView = (window as any).flutter_inappwebview;
+    if (flutterWebView && typeof flutterWebView.callHandler === 'function') {
+      const nativeGranted = await flutterWebView.callHandler('requestNativeNotificationPermission');
+      if (nativeGranted) {
+        localStorage.setItem('gb_screen_alerts_enabled', 'true');
+        return true;
+      }
     }
-    return false;
   } catch (err) {
-    console.error('Permission request failed:', err);
+    console.warn('Flutter native bridge call error:', err);
+  }
+
+  // 2. Standard Web Notification API (Chrome, Safari, Edge, Firefox)
+  if ('Notification' in window) {
+    try {
+      let permission: NotificationPermission = Notification.permission;
+
+      if (permission === 'default') {
+        try {
+          // Standard Promise syntax
+          permission = await Notification.requestPermission();
+        } catch {
+          // Legacy callback syntax for older iOS Safari
+          permission = await new Promise<NotificationPermission>((resolve) => {
+            Notification.requestPermission((p) => resolve(p));
+          });
+        }
+      }
+
+      if (permission === 'granted') {
+        localStorage.setItem('gb_screen_alerts_enabled', 'true');
+        await registerServiceWorker();
+        return true;
+      } else if (permission === 'denied') {
+        // Notification is blocked in browser settings
+        console.warn('Notification permission was denied by user/browser');
+        return false;
+      }
+    } catch (err) {
+      console.error('Permission request failed:', err);
+    }
+  }
+
+  // 3. Fallback for WebViews or environments without window.Notification
+  try {
+    localStorage.setItem('gb_screen_alerts_enabled', 'true');
+    return true;
+  } catch {
     return false;
   }
 }

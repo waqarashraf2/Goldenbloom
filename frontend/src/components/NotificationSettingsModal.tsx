@@ -8,7 +8,8 @@ import {
 import { apiRequest } from '@/lib/api';
 import { 
   requestNotificationPermission, 
-  triggerTestLockScreenNotification 
+  triggerTestLockScreenNotification,
+  isScreenAlertsActive 
 } from '@/lib/notifications';
 
 interface NotificationSettingsModalProps {
@@ -54,8 +55,12 @@ export default function NotificationSettingsModal({
   } | null>(null);
 
   useEffect(() => {
-    if (typeof window !== 'undefined' && 'Notification' in window) {
-      setPermissionStatus(Notification.permission);
+    if (typeof window !== 'undefined') {
+      if (isScreenAlertsActive()) {
+        setPermissionStatus('granted');
+      } else if ('Notification' in window) {
+        setPermissionStatus(Notification.permission);
+      }
     }
     if (isOpen) {
       loadWhatsAppSettings();
