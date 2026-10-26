@@ -1,10 +1,48 @@
 import os
 import glob
+import shutil
+
+def setup_icons():
+    """Copy Golden Bloom branded launcher icons into Android mipmap & drawable folders."""
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    icons_src = os.path.join(script_dir, "assets", "icons")
+    res_dst = os.path.join(script_dir, "android", "app", "src", "main", "res")
+
+    print(f"Setting up Golden Bloom icons from {icons_src} to {res_dst}...")
+
+    # If Pillow is available, regenerate fresh icons directly from assets/images/logo.png
+    try:
+        from generate_icons import generate
+        generate()
+        print("Regenerated brand icons via generate_icons.py")
+    except Exception as e:
+        print(f"Pillow generation skipped or failed ({e}); falling back to copying assets/icons...")
+
+    if os.path.exists(icons_src) and os.path.exists(res_dst):
+        for item in os.listdir(icons_src):
+            s = os.path.join(icons_src, item)
+            d = os.path.join(res_dst, item)
+            if os.path.isdir(s):
+                os.makedirs(d, exist_ok=True)
+                for f in os.listdir(s):
+                    sf = os.path.join(s, f)
+                    df = os.path.join(d, f)
+                    shutil.copy2(sf, df)
+                    print(f"Copied icon {item}/{f} -> {df}")
+            else:
+                shutil.copy2(s, d)
+                print(f"Copied file {item} -> {d}")
+        print("Brand icons copied successfully into android res directories!")
+    else:
+        print(f"Warning: Source icons {icons_src} or dest {res_dst} not found.")
 
 def configure():
     print("Listing files in android/app:")
     for f in glob.glob("android/app/*"):
         print(" -", f)
+
+    # Copy and setup Golden Bloom Launcher Icons
+    setup_icons()
 
     # Check for Groovy build.gradle
     groovy_path = "android/app/build.gradle"
@@ -90,10 +128,14 @@ def configure():
         if 'android:label="' in m:
             import re
             m = re.sub(r'android:label="[^"]*"', 'android:label="Golden Bloom CRM"', m)
+        if 'android:icon="' not in m:
+            m = m.replace("<application", '<application android:icon="@mipmap/ic_launcher"')
+        if 'android:roundIcon="' not in m:
+            m = m.replace("<application", '<application android:roundIcon="@mipmap/ic_launcher_round"')
 
         with open(manifest_path, "w", encoding="utf-8") as f:
             f.write(m)
-        print("Configured AndroidManifest.xml")
+        print("Configured AndroidManifest.xml with brand icons and permissions")
 
 if __name__ == "__main__":
     configure()

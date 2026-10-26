@@ -38,9 +38,10 @@ jobs:
           cp pubspec.yaml.bak pubspec.yaml
           cp main.dart.bak lib/main.dart
 
-      - name: Configure Android Manifest & Desugaring
+      - name: Configure Android Manifest, Brand Icons & Desugaring
         working-directory: mobile_app
         run: |
+          python3 -m pip install pillow || true
           python3 configure_android.py
 
       - name: Install Dependencies

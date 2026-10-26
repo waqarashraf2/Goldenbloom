@@ -12,6 +12,7 @@ import LogCallModal from '@/components/LogCallModal';
 import LeadDetailsModal from '@/components/LeadDetailsModal';
 import NotificationBell from '@/components/NotificationBell';
 import DownloadApkModal from '@/components/DownloadApkModal';
+import IosInstallBanner from '@/components/IosInstallBanner';
 import NotificationSettingsModal from '@/components/NotificationSettingsModal';
 import { 
   LayoutDashboard, Users, Clock, PhoneCall, FileSpreadsheet, 
@@ -31,7 +32,34 @@ export default function CrmApp() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [showDownloadApkModal, setShowDownloadApkModal] = useState(false);
+  const [installModalTab, setInstallModalTab] = useState<'android' | 'iphone'>('android');
+  const [clientDevice, setClientDevice] = useState<'iphone' | 'android' | 'desktop'>('desktop');
   const [showNotificationSettingsModal, setShowNotificationSettingsModal] = useState(false);
+
+  // Detect client device on mount for smart installation guidance
+  useEffect(() => {
+    if (typeof navigator !== 'undefined') {
+      const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || 
+        (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+      const isAndroid = /Android/.test(navigator.userAgent);
+      if (isIOS) {
+        setClientDevice('iphone');
+        setInstallModalTab('iphone');
+      } else if (isAndroid) {
+        setClientDevice('android');
+        setInstallModalTab('android');
+      }
+    }
+  }, []);
+
+  const handleOpenInstallModal = (tab?: 'iphone' | 'android') => {
+    if (tab) {
+      setInstallModalTab(tab);
+    } else {
+      setInstallModalTab(clientDevice === 'iphone' ? 'iphone' : 'android');
+    }
+    setShowDownloadApkModal(true);
+  };
 
   // Auto-refresh and manual refresh state
   const [refreshTrigger, setRefreshTrigger] = useState<number>(0);
@@ -473,10 +501,10 @@ export default function CrmApp() {
         {/* Sidebar Footer: User Card */}
         <div className="p-2.5 border-t border-slate-100 bg-slate-50/50">
           
-          {/* Download Mobile APK Card */}
+          {/* Download / Install Mobile App Card */}
           <button
             type="button"
-            onClick={() => setShowDownloadApkModal(true)}
+            onClick={() => handleOpenInstallModal()}
             className="w-full mb-2 p-2 rounded-xl bg-linear-to-r from-amber-50 to-amber-100/80 hover:from-amber-100 hover:to-amber-200/80 border border-amber-300 text-amber-950 flex items-center justify-between text-xs font-bold transition shadow-2xs cursor-pointer group"
           >
             <div className="flex items-center gap-2">
@@ -484,8 +512,12 @@ export default function CrmApp() {
                 <Smartphone className="w-3.5 h-3.5" />
               </div>
               <div className="text-left">
-                <div className="text-[11px] font-bold leading-tight">Android App (.APK)</div>
-                <div className="text-[9px] text-amber-700 font-medium">Screen Alerts Ready</div>
+                <div className="text-[11px] font-bold leading-tight">
+                  {clientDevice === 'iphone' ? '🍏 iPhone App' : clientDevice === 'android' ? '🤖 Android App (.APK)' : '📱 Mobile App'}
+                </div>
+                <div className="text-[9px] text-amber-700 font-medium">
+                  {clientDevice === 'iphone' ? 'Add to Home Screen' : 'Screen Alerts Ready'}
+                </div>
               </div>
             </div>
             <Download className="w-3.5 h-3.5 text-amber-700 group-hover:translate-y-0.5 transition" />
@@ -583,15 +615,17 @@ export default function CrmApp() {
               <span className="hidden sm:inline">WhatsApp Alerts</span>
             </button>
 
-            {/* Download Mobile App Button */}
+            {/* Download / Install Mobile App Button */}
             <button
               type="button"
-              onClick={() => setShowDownloadApkModal(true)}
-              title="Download Android Mobile App (.APK) for WhatsApp-style screen notifications"
-              className="px-2.5 py-1 rounded-lg bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-300 text-xs font-bold flex items-center gap-1.5 shadow-2xs transition cursor-pointer"
+              onClick={() => handleOpenInstallModal()}
+              title="Install Golden Bloom Mobile App on iPhone or Android"
+              className="px-2 sm:px-2.5 py-1 rounded-lg bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-300 text-xs font-bold flex items-center gap-1.5 shadow-2xs transition cursor-pointer"
             >
               <Smartphone className="w-3.5 h-3.5 text-amber-700" />
-              <span className="hidden sm:inline">Mobile App (.APK)</span>
+              <span className="text-[11px] sm:text-xs">
+                {clientDevice === 'iphone' ? '🍏 iPhone App' : clientDevice === 'android' ? '🤖 Android (.APK)' : '📱 Mobile App'}
+              </span>
             </button>
 
             {/* Real-time Notification Bell & Mobile/PC Screen Alerts */}
@@ -703,9 +737,12 @@ export default function CrmApp() {
         />
       )}
 
-      {/* Mobile APK Download Modal */}
+      {/* Mobile App Install & APK Download Modal */}
       {showDownloadApkModal && (
-        <DownloadApkModal onClose={() => setShowDownloadApkModal(false)} />
+        <DownloadApkModal 
+          initialTab={installModalTab}
+          onClose={() => setShowDownloadApkModal(false)} 
+        />
       )}
 
       {/* Push & WhatsApp Notification Settings Modal */}
@@ -716,6 +753,9 @@ export default function CrmApp() {
           onOpenLead={handleOpenLeadById}
         />
       )}
+
+      {/* iOS Safari Smart Add-to-Home-Screen Banner */}
+      <IosInstallBanner onOpenInstallModal={(tab) => handleOpenInstallModal(tab)} />
 
     </div>
   );
