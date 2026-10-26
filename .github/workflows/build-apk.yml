@@ -75,6 +75,7 @@ jobs:
           EOF
 
           ssh hostinger "mkdir -p /home/${{ secrets.HOSTINGER_USER }}/domains/crm.goldenbloom.ae/public_html/downloads"
-          rsync -avz \
+          rsync -avz --chmod=Du=rwx,Dgo=rx,Fu=rw,Fgo=r \
             mobile_app/build/app/outputs/flutter-apk/app-release.apk \
             hostinger:/home/${{ secrets.HOSTINGER_USER }}/domains/crm.goldenbloom.ae/public_html/downloads/goldenbloom-crm.apk
+          ssh hostinger "chmod 755 /home/${{ secrets.HOSTINGER_USER }}/domains/crm.goldenbloom.ae/public_html/downloads && chmod 644 /home/${{ secrets.HOSTINGER_USER }}/domains/crm.goldenbloom.ae/public_html/downloads/goldenbloom-crm.apk"

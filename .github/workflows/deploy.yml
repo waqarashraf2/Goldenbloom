@@ -65,17 +65,23 @@ jobs:
             # Remove default placeholder if exists
             rm -f default.php
 
-            # Create SPA .htaccess for client-side routing
+            # Create SPA .htaccess for client-side routing & APK direct binary downloads
             cat << 'HTACCESS' > .htaccess
-          <IfModule mod_rewrite.c>
-              RewriteEngine On
-              RewriteBase /
-              RewriteRule ^index\.html$ - [L]
-              RewriteCond %{REQUEST_FILENAME} !-f
-              RewriteCond %{REQUEST_FILENAME} !-d
-              RewriteRule . /index.html [L]
-          </IfModule>
-          HTACCESS
+AddType application/vnd.android.package-archive .apk
+
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteBase /
+
+    # Exclude APK downloads from SPA rewrite
+    RewriteRule ^downloads/.*\.apk$ - [L]
+
+    RewriteRule ^index\.html$ - [L]
+    RewriteCond %{REQUEST_FILENAME} !-f
+    RewriteCond %{REQUEST_FILENAME} !-d
+    RewriteRule . /index.html [L]
+</IfModule>
+HTACCESS
           EOF
 
   deploy-backend:
